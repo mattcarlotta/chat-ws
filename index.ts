@@ -1,5 +1,4 @@
 import type { Server, ServerWebSocket } from "bun";
-import cookie from "cookie";
 
 type WebSocketWithData = ServerWebSocket<{
     clientId: string;
@@ -36,7 +35,10 @@ class WebSocketServer {
         this.server = Bun.serve({
             port: String(process.env.PORT || 8080),
             fetch: (req, server): Response | undefined => {
-                const { clientId, username } = this.parseCookie(req);
+                const url = new URL(req.url);
+                const clientId =
+                    url.searchParams.get("clientId") || crypto.randomUUID();
+                const username = url.searchParams.get("username");
 
                 if (!username) {
                     return new Response(
@@ -47,10 +49,14 @@ class WebSocketServer {
                     );
                 }
 
+                const headers = new Headers();
+
+                headers.append("Set-Cookie", `clientId=${clientId}; max-age=2592000`);
+
+                headers.append("Set-Cookie", `username=${username}; max-age=2592000`);
+
                 const upgraded = server.upgrade(req, {
-                    headers: {
-                        "Set-Cookie": `clientId=${clientId}; username=${username}; domain="localhost"; max-age=2592000`,
-                    },
+                    headers,
                     data: { clientId, username },
                 });
 
@@ -71,18 +77,6 @@ class WebSocketServer {
         console.log(
             `WebSocket server running on port: ${this.server.hostname}:${this.server.port}`,
         );
-    }
-
-    private parseCookie(req: Request): {
-        clientId: string;
-        username: string | null;
-    } {
-        const parsedCookie = cookie.parse(req.headers.get("Cookie") || "");
-
-        return {
-            clientId: parsedCookie.clientId || crypto.randomUUID(),
-            username: parsedCookie.username || req.headers.get("username"),
-        };
     }
 
     private broadcast = (data: Message): void => {
