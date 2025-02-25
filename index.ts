@@ -16,7 +16,7 @@ enum MessageType {
     WELCOME = "welcome",
     USER_JOINED = "user_joined",
     USER_LEFT = "user_left",
-    MESSAGE = "message",
+    USER_MESSAGE = "user_message",
     ERROR = "error",
 }
 
@@ -24,6 +24,7 @@ interface Message {
     type: MessageType;
     username: string;
     clientId?: string;
+    senderId?: string;
     message?: string;
 }
 
@@ -84,38 +85,40 @@ class WebSocketServer {
         };
     }
 
-    private broadcast = (senderId: string | null, data: Message): void => {
-        this.clients.forEach((client) => {
-            if (senderId === null || client.id !== senderId) {
-                client.socket.send(
-                    JSON.stringify({
-                        type: data.type,
-                        id: crypto.randomUUID(),
-                        connectedClients: this.clients.size,
-                        message: data.message,
-                        sentByCurrentUser: client.id === data.clientId,
-                        timestamp: new Date().toISOString(),
-                        username: data.username,
-                    }),
-                );
-            }
-        });
+    private broadcast = (data: Message): void => {
+        for (const { 1: client } of this.clients.entries()) {
+            if (data.senderId && client.id === data.senderId) continue;
+
+            client.socket.send(
+                JSON.stringify({
+                    type: data.type,
+                    id: crypto.randomUUID(),
+                    connectedClients: this.clients.size,
+                    message: data.message,
+                    sentByCurrentUser: client.id === data.clientId,
+                    timestamp: new Date().toISOString(),
+                    username: data.username,
+                }),
+            );
+        }
     };
 
     private relayMessage(
         ws: WebSocketWithData,
-        type: MessageType,
-        message: string,
+        data: {
+            type: MessageType;
+            error?: string;
+        },
     ): void {
         ws.send(
             JSON.stringify({
-                type,
+                type: data.type,
                 id: crypto.randomUUID(),
                 connectedClients: this.clients.size,
-                message,
+                error: data.error,
+                sentByCurrentUser: data.type === MessageType.USER_MESSAGE,
                 timestamp: new Date().toISOString(),
                 username: ws.data.username,
-                sentBy: type === MessageType.MESSAGE ? "user" : "system",
             }),
         );
     }
@@ -131,28 +134,30 @@ class WebSocketServer {
 
         this.clients.set(clientId, { id: clientId, username, socket: ws });
 
-        this.relayMessage(ws, MessageType.WELCOME, `Welcome ${username}`);
+        this.relayMessage(ws, { type: MessageType.WELCOME });
 
-        this.broadcast(clientId, {
+        this.broadcast({
             type: MessageType.USER_JOINED,
+            senderId: clientId,
             username,
         });
     };
 
     private handleMessage = (ws: WebSocketWithData, message: string): void => {
-        const { clientId, username } = ws.data;
         try {
-            if (!message) return;
+            if (!message) throw Error("You must provide a message!");
 
-            this.broadcast(null, {
-                type: MessageType.MESSAGE,
-                clientId,
+            this.broadcast({
+                ...ws.data,
+                type: MessageType.USER_MESSAGE,
                 message,
-                username,
             });
         } catch (error) {
             console.error(`Error parsing message: `, error);
-            this.relayMessage(ws, MessageType.ERROR, "Invalid message");
+            this.relayMessage(ws, {
+                type: MessageType.ERROR,
+                error: (error as Error)?.message,
+            });
         }
     };
 
@@ -163,7 +168,7 @@ class WebSocketServer {
 
         console.log(`Client diconnected: ${clientId}`);
 
-        this.broadcast(null, {
+        this.broadcast({
             type: MessageType.USER_LEFT,
             username,
         });
