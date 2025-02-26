@@ -1,6 +1,7 @@
+import type { ReactNode } from "react";
 import ChatIcon from "./ChatIcon";
 
-export default function Nav() {
+export default function Chat({ children, title }: { children: ReactNode; title?: ReactNode }) {
     return (
         <>
             <a
@@ -17,6 +18,8 @@ export default function Nav() {
                     <ChatIcon className="h-6 w-6" />
                 </header>
             </nav>
+            {title}
+            <main id="main">{children}</main>
         </>
     );
 }

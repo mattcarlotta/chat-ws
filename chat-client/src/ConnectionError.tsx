@@ -1,8 +1,10 @@
-import Chat from "./Chat";
+import Nav from "./Nav";
+import useWebSocketContext from "./useWebSocketContext";
 
-export default function ConnectionError({ error }: { error: string }) {
+export default function ConnectionError() {
+    const { error } = useWebSocketContext();
     return (
-        <Chat>
+        <Nav>
             <div className="h-[calc(100%-81px)] flex flex-col items-center justify-center">
                 <div className="p-4 text-gray-600 bg-orange-800/10 border border-orange-300 text-center rounded dark:bg-purple-900/50 dark:border-purple-900">
                     <header id="app-error">
@@ -11,6 +13,6 @@ export default function ConnectionError({ error }: { error: string }) {
                     <p className="text-xl text-red-600">{error}</p>
                 </div>
             </div>
-        </Chat>
+        </Nav>
     );
 }

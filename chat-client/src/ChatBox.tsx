@@ -1,17 +1,17 @@
-import type { Message } from "./types";
 import { MessageType } from "./types";
 import clsx from "clsx";
-import Chat from "./Chat";
+import Nav from "./Nav";
+import useWebSocketContext from "./useWebSocketContext";
 
-type ChatBoxProps = {
-    onlineUsers: number;
-    messages: Message[];
-    onDisconnect: () => void;
-};
+export default function NavBox() {
+    const { socket, messages, onlineUsers } = useWebSocketContext();
 
-export default function ChatBox({ onDisconnect, onlineUsers, messages }: ChatBoxProps) {
+    const handleDisconnect = () => {
+        socket?.close();
+    };
+
     return (
-        <Chat
+        <Nav
             title={
                 <div className="fixed flex items-center top-4 right-4 space-x-4 z-20">
                     <p className="hidden md:block">
@@ -20,7 +20,7 @@ export default function ChatBox({ onDisconnect, onlineUsers, messages }: ChatBox
                     <button
                         className="text-white cursor-pointer p-2 bg-red-500 rounded shadow-md"
                         type="button"
-                        onClick={onDisconnect}
+                        onClick={handleDisconnect}
                     >
                         Disconnect
                     </button>
@@ -58,7 +58,7 @@ export default function ChatBox({ onDisconnect, onlineUsers, messages }: ChatBox
                                     <>
                                         {m.sentByCurrentUser && <div className="col-span-2 md:col-span-1" />}
                                         <div className={clsx("col-span-3", m.sentByCurrentUser && "flex justify-end")}>
-                                            {!m.sentByCurrentUser && <p>{m.username} wrote...</p>}
+                                            {!m.sentByCurrentUser && <p className="italic">{m.username} says...</p>}
                                             <p
                                                 className={clsx(
                                                     "text-white p-1.5 rounded-xl max-w-fit",
@@ -82,6 +82,6 @@ export default function ChatBox({ onDisconnect, onlineUsers, messages }: ChatBox
                     </div>
                 ))}
             </div>
-        </Chat>
+        </Nav>
     );
 }

@@ -1,18 +1,28 @@
 import type { ChangeEvent, FormEvent } from "react";
-import Chat from "./Chat";
+import Nav from "./Nav";
+import useWebSocketContext from "./useWebSocketContext";
+import { ConnectionStatus } from "./types";
 
-type LoginFormProps = {
-    onSubmit: (e: FormEvent) => void;
-    onInputChange: (e: ChangeEvent<HTMLInputElement>) => void;
-    username: string;
-};
+export default function LoginForm() {
+    const { username, setConnectionStatus, setUsername } = useWebSocketContext();
 
-export default function LoginForm({ onInputChange, onSubmit, username }: LoginFormProps) {
+    const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+        setUsername(e.target.value);
+    };
+
+    const handleSubmit = (e: FormEvent) => {
+        e.preventDefault();
+
+        if (!username.length) return;
+
+        setConnectionStatus(ConnectionStatus.CONNECTING);
+    };
+
     return (
-        <Chat>
+        <Nav>
             <form
                 className="h-[calc(100%-81px)] flex flex-col justify-center items-center space-y-4"
-                onSubmit={onSubmit}
+                onSubmit={handleSubmit}
             >
                 <div>
                     <label>
@@ -22,7 +32,7 @@ export default function LoginForm({ onInputChange, onSubmit, username }: LoginFo
                             className="text-black bg-white w-full py-3.5 pl-3.5 border border-gray-400 rounded"
                             type="text"
                             value={username}
-                            onChange={onInputChange}
+                            onChange={handleInputChange}
                         />
                     </label>
                 </div>
@@ -35,6 +45,6 @@ export default function LoginForm({ onInputChange, onSubmit, username }: LoginFo
                     </button>
                 </div>
             </form>
-        </Chat>
+        </Nav>
     );
 }

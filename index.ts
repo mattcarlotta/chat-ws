@@ -36,11 +36,10 @@ class WebSocketServer {
             port: String(process.env.PORT || 8080),
             fetch: (req, server): Response | undefined => {
                 const url = new URL(req.url);
-                const clientId =
-                    url.searchParams.get("clientId") || crypto.randomUUID();
+                const clientId = url.searchParams.get("clientId");
                 const username = url.searchParams.get("username");
 
-                if (!username) {
+                if (!username || !clientId) {
                     return new Response(
                         "You must sign in with a username before you can chat!",
                         {
@@ -49,14 +48,7 @@ class WebSocketServer {
                     );
                 }
 
-                const headers = new Headers();
-
-                headers.append("Set-Cookie", `clientId=${clientId}; max-age=2592000`);
-
-                headers.append("Set-Cookie", `username=${username}; max-age=2592000`);
-
                 const upgraded = server.upgrade(req, {
-                    headers,
                     data: { clientId, username },
                 });
 

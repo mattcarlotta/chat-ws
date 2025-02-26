@@ -1,12 +1,10 @@
 import type { ChangeEvent, FormEvent } from "react";
 import { useState } from "react";
 import SendIcon from "./SendIcon";
+import useWebSocketContext from "./useWebSocketContext";
 
-type SendChatMessageFormProps = {
-    onChatSubmit: (m: string) => void;
-};
-
-export default function SendChatMessageForm({ onChatSubmit }: SendChatMessageFormProps) {
+export default function SendChatMessageForm() {
+    const { socket } = useWebSocketContext();
     const [message, setMessage] = useState("");
 
     const handleMessageChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -19,7 +17,7 @@ export default function SendChatMessageForm({ onChatSubmit }: SendChatMessageFor
         if (!message) return;
 
         setMessage("");
-        onChatSubmit(message);
+        socket?.send(message);
     };
 
     return (
