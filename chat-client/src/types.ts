@@ -29,7 +29,5 @@ export interface WebSocketContextT {
     messages: Message[];
     onlineUsers: number;
     setConnectionStatus: (s: ConnectionStatus) => void;
-    setUsername: (u: string) => void;
     socket: WebSocket | null;
-    username: string;
 }

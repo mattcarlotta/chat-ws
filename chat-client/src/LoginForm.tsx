@@ -1,21 +1,45 @@
-import type { ChangeEvent, FormEvent } from "react";
+import type { FormEvent } from "react";
+import { useState } from "react";
+import Cookie from "js-cookie";
 import Nav from "./Nav";
 import useWebSocketContext from "./useWebSocketContext";
 import { ConnectionStatus } from "./types";
 
 export default function LoginForm() {
-    const { username, setConnectionStatus, setUsername } = useWebSocketContext();
+    const { setConnectionStatus } = useWebSocketContext();
+    const [username, setUsername] = useState("");
+    const [password, setPassword] = useState("");
+    const [error, setError] = useState("");
 
-    const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-        setUsername(e.target.value);
-    };
-
-    const handleSubmit = (e: FormEvent) => {
+    const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
 
-        if (!username.length) return;
+        setError("");
+        if (!username.length || !password.length) {
+            setError("You must provide a username and a password!");
+            return;
+        }
 
-        setConnectionStatus(ConnectionStatus.CONNECTING);
+        try {
+            const res = await fetch(`http://${import.meta.env.VITE_HOST_URL}/`, {
+                method: "POST",
+                body: JSON.stringify({ username, password }),
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            });
+
+            const data = await res.text();
+            if (!res.ok || !data) {
+                throw Error(data || "Unable to get token!");
+            }
+
+            Cookie.set("token", data, { path: "/", expires: 2592000 });
+
+            setConnectionStatus(ConnectionStatus.CONNECTING);
+        } catch (error) {
+            setError((error as Error)?.message);
+        }
     };
 
     return (
@@ -32,7 +56,19 @@ export default function LoginForm() {
                             className="text-black bg-white w-full py-3.5 pl-3.5 border border-gray-400 rounded"
                             type="text"
                             value={username}
-                            onChange={handleInputChange}
+                            onChange={(e) => setUsername(e.target.value)}
+                        />
+                    </label>
+                </div>
+                <div>
+                    <label>
+                        <input
+                            id="password"
+                            placeholder="Enter a password..."
+                            className="text-black bg-white w-full py-3.5 pl-3.5 border border-gray-400 rounded"
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
                         />
                     </label>
                 </div>
@@ -44,6 +80,7 @@ export default function LoginForm() {
                         Log In
                     </button>
                 </div>
+                {Boolean(error) && <p className="text-red-500 font-bold">{error}</p>}
             </form>
         </Nav>
     );

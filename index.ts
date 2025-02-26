@@ -41,35 +41,41 @@ class WebSocketServer {
         this.server = Bun.serve({
             port: String(process.env.PORT || 8080),
             fetch: async (req, server): Promise<Response | undefined> => {
-                const username = req.headers.get("username");
-                const password = req.headers.get("password");
                 const url = new URL(req.url);
                 const token = url.searchParams.get("token") || "";
 
-                if (url.pathname === "/" && !token) {
-                    // check if user exists in DB and contains a valid password
-                    if (!username || password !== import.meta.env.PASSWORD) {
-                        return this.sendError(
-                            403,
-                            "You must sign in with a username before you can chat!",
-                        );
-                    }
+                if (req.method === "OPTIONS") {
+                    return new Response(null, {
+                        status: 204,
+                        headers: this.createHeaders(),
+                    });
+                }
 
+                if (url.pathname === "/" && req.method === "POST" && !token) {
                     try {
+                        const { username, password } = (await req.json()) as {
+                            username: string;
+                            password: string;
+                        };
+                        if (!username || password !== import.meta.env.PASSWORD) {
+                            return this.sendError(
+                                403,
+                                "You must sign in with a username before you can chat!",
+                            );
+                        }
                         const userId = crypto.randomUUID();
                         await store.set(userId, username, {
                             EX: 2592000,
                         });
-                        const token = jwt.sign({ userId }, import.meta.env.JWT_SECRET);
 
-                        const headers = new Headers();
-                        headers.set(
-                            "Set-Cookie",
-                            `token=${token}; path=/; Max-Age=2592000`,
-                        );
-                        return new Response(`Welcome ${username}.`, {
+                        const token = jwt.sign({ userId }, import.meta.env.JWT_SECRET);
+                        const headers = this.createHeaders();
+
+                        headers.set("Content-Type", "application/json");
+
+                        return new Response(token, {
                             headers,
-                            status: 201,
+                            status: 200,
                         });
                     } catch (error) {
                         return this.sendError(400, (error as Error)?.message);
@@ -98,6 +104,7 @@ class WebSocketServer {
 
                     return this.sendError(500, "Upgrade failed - Websocket server only");
                 } catch (error) {
+                    console.log(error);
                     return this.sendError(403, "Invalid token!");
                 }
             },
@@ -112,6 +119,19 @@ class WebSocketServer {
         console.log(`WebSocket server running at... ${this.server.url}`);
     }
 
+    private createHeaders(): Headers {
+        const headers = new Headers();
+
+        headers.set("Access-Control-Allow-Origin", "*");
+        headers.set(
+            "Access-Control-Allow-Methods",
+            "GET, POST, PUT, DELETE, OPTIONS",
+        );
+        headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        headers.set("Access-Control-Max-Age", "86400");
+
+        return headers;
+    }
     private broadcast = (data: Message): void => {
         for (const { 1: client } of this.clients.entries()) {
             if (data.senderId && client.id === data.senderId) continue;
@@ -132,11 +152,9 @@ class WebSocketServer {
 
     private sendError(status: number, err: string): Response {
         console.error(err);
-        const headers = new Headers();
-        headers.set("Set-Cookie", "token=; path=/; Max-Age=0");
         return new Response(err, {
             status,
-            headers,
+            headers: this.createHeaders(),
         });
     }
 
@@ -204,7 +222,7 @@ class WebSocketServer {
         const { userId, username } = ws.data;
 
         this.clients.delete(userId);
-        await store.del(userId);
+        // await store.del(userId);
 
         console.log(`Client diconnected: ${userId}`);
 
