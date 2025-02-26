@@ -46,7 +46,7 @@ function App() {
 
     useEffect(() => {
         const connectToChat = () => {
-            const socket = new WebSocket(`ws://localhost:8080?clientId=${userId}&username=${username}`);
+            const socket = new WebSocket(`ws://192.168.1.11:8080?clientId=${userId}&username=${username}`);
 
             socket.onopen = () => {
                 setConnectionStatus(ConnectionStatus.CONNECTED);
