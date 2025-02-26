@@ -10,5 +10,10 @@
   "scripts": {
     "start": "bun run --watch index.ts"
   },
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@redis/client": "^1.6.0",
+    "@types/jsonwebtoken": "^9.0.9",
+    "jsonwebtoken": "^9.0.2"
+  }
 }
