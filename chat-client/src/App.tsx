@@ -6,6 +6,7 @@ import Chat from "./Chat";
 import ConnectionError from "./ConnectionError";
 import LoginForm from "./LoginForm";
 import ChatBox from "./ChatBox";
+import SendChatMessageForm from "./SendChatMessageForm";
 
 enum ConnectionStatus {
     CONNECTING,
@@ -21,7 +22,6 @@ function App() {
     const [connectionStatus, setConnectionStatus] = useState(ConnectionStatus.CONNECTING);
     const [userId, setUserId] = useState("");
     const [onlineUsers, setOnlineUsers] = useState(0);
-    const [message, setMessage] = useState("");
     const [messages, setMessages] = useState<Message[]>([]);
 
     const handleSubmit = (e: FormEvent) => {
@@ -32,10 +32,6 @@ function App() {
         setConnectionStatus(ConnectionStatus.CONNECTING);
     };
 
-    const handleMessageChange = (e: ChangeEvent<HTMLInputElement>) => {
-        setMessage(e.target.value);
-    };
-
     const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
         setUsername(e.target.value);
     };
@@ -44,14 +40,8 @@ function App() {
         socketRef.current?.close();
     };
 
-    const handleChatSubmit = (e: FormEvent) => {
-        e.preventDefault();
-
-        if (!message) return;
-
+    const handleChatSubmit = (message: string) => {
         socketRef.current?.send(message);
-
-        setMessage("");
     };
 
     useEffect(() => {
@@ -120,14 +110,10 @@ function App() {
                         </Chat>
                     ),
                     [ConnectionStatus.CONNECTED]: (
-                        <ChatBox
-                            onChatSubmit={handleChatSubmit}
-                            onDisconnect={handleDisconnect}
-                            onMessageChange={handleMessageChange}
-                            message={message}
-                            messages={messages}
-                            onlineUsers={onlineUsers}
-                        />
+                        <>
+                            <ChatBox onDisconnect={handleDisconnect} messages={messages} onlineUsers={onlineUsers} />
+                            <SendChatMessageForm onChatSubmit={handleChatSubmit} />
+                        </>
                     ),
                     [ConnectionStatus.ERROR]: <ConnectionError error={error} />,
                     [ConnectionStatus.UNAUTHED]: (

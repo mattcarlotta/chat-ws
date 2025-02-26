@@ -1,18 +1,14 @@
 {
   "name": "websocket",
   "module": "index.ts",
-  "type": "module",
-  "scripts": {
-    "start": "bun run --watch index.ts"
-  },
   "devDependencies": {
     "@types/bun": "latest"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
-  "dependencies": {
-    "clsx": "^2.1.1",
-    "cookie": "^1.0.2"
-  }
+  "scripts": {
+    "start": "bun run --watch index.ts"
+  },
+  "type": "module"
 }
