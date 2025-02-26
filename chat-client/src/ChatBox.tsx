@@ -37,34 +37,41 @@ export default function ChatBox({ onDisconnect, onlineUsers, messages }: ChatBox
                         className="grid grid-cols-2 gap-x-4"
                         key={m.id}
                     >
-                        {m.type === MessageType.WELCOME && (
-                            <p className="col-span-2 text-gray-500 rounded">
-                                Welcome to the chatroom {m.username}! Use the textbox below to send a message.
-                            </p>
-                        )}
-                        {m.type === MessageType.USER_JOINED && (
-                            <p className="col-span-2 rounded text-gray-500">{m.username} has joined the chat!</p>
-                        )}
-                        {m.type === MessageType.USER_LEFT && (
-                            <p className="col-span-2 rounded text-gray-500">{m.username} left the chat.</p>
-                        )}
-                        {m.type === MessageType.USER_MESSAGE && (
-                            <>
-                                {m.sentByCurrentUser && <div className="w-full" />}
-                                <div className="w-full">
-                                    <p>{m.sentByCurrentUser ? "You" : m.username} wrote...</p>
-                                    <p
-                                        className={clsx(
-                                            "text-white p-2 rounded",
-                                            m.sentByCurrentUser ? "bg-blue-500" : "bg-gray-700"
-                                        )}
-                                    >
-                                        {m.message}
+                        {
+                            {
+                                [MessageType.WELCOME]: (
+                                    <p className="col-span-2 text-gray-500 rounded">
+                                        Welcome to the chatroom {m.username}! Use the textbox below to send a message.
                                     </p>
-                                </div>
-                                {!m.sentByCurrentUser && <div className="w-full" />}
-                            </>
-                        )}
+                                ),
+                                [MessageType.ERROR]: <p>Error</p>,
+                                [MessageType.USER_LEFT]: (
+                                    <p className="col-span-2 rounded text-gray-500">{m.username} left the chat.</p>
+                                ),
+                                [MessageType.USER_JOINED]: (
+                                    <p className="col-span-2 rounded text-gray-500">
+                                        {m.username} has joined the chat!
+                                    </p>
+                                ),
+                                [MessageType.USER_MESSAGE]: (
+                                    <>
+                                        {m.sentByCurrentUser && <div className="w-full" />}
+                                        <div className="w-full">
+                                            {!m.sentByCurrentUser && <p>{m.username} wrote...</p>}
+                                            <p
+                                                className={clsx(
+                                                    "text-white p-2 rounded",
+                                                    m.sentByCurrentUser ? "bg-blue-500" : "bg-gray-700"
+                                                )}
+                                            >
+                                                {m.message}
+                                            </p>
+                                        </div>
+                                        {!m.sentByCurrentUser && <div className="w-full" />}
+                                    </>
+                                )
+                            }[m.type]
+                        }
                         {messages.length === index + 1 && (
                             <div
                                 className="col-span-2 mt-4"
