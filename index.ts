@@ -1,6 +1,13 @@
 import type { Server, ServerWebSocket } from "bun";
-import jwt from "jsonwebtoken";
+import type { RouterInterface } from "./router";
+import type {
+    RedisClientType,
+    RedisFunctions,
+    RedisModules,
+    RedisScripts,
+} from "@redis/client";
 import { createClient } from "@redis/client";
+import router from "./router";
 
 type WebSocketWithData = ServerWebSocket<{
     userId: string;
@@ -37,92 +44,14 @@ class WebSocketServer {
     private clients: Map<string, Client> = new Map();
     private server: Server;
 
-    constructor() {
+    constructor(
+        router: RouterInterface,
+        store: RedisClientType<RedisModules, RedisFunctions, RedisScripts>,
+    ) {
         this.server = Bun.serve({
             port: String(process.env.PORT || 8080),
             fetch: async (req, server): Promise<Response | undefined> => {
-                const url = new URL(req.url);
-                const token = url.searchParams.get("token") || "";
-
-                // if (req.method === "OPTIONS") {
-                //     return new Response(null, {
-                //         status: 204,
-                //         headers: this.createHeaders(),
-                //     });
-                // }
-
-                if (
-                    (url.pathname.includes("assets") || url.pathname.includes("svg")) &&
-                    req.method === "GET"
-                ) {
-                    return new Response(Bun.file(`./chat-client/dist${url.pathname}`));
-                }
-
-                if (url.pathname === "/" && req.method === "GET") {
-                    return new Response(Bun.file(`./chat-client/dist/index.html`));
-                }
-
-                if (url.pathname === "/" && req.method === "POST") {
-                    try {
-                        const { username, password } = (await req.json()) as {
-                            username: string;
-                            password: string;
-                        };
-                        if (!username || password !== import.meta.env.PASSWORD) {
-                            return this.sendError(
-                                403,
-                                "You must sign in with a username before you can chat!",
-                            );
-                        }
-                        const userId = crypto.randomUUID();
-                        await store.set(userId, username, {
-                            EX: 2592000,
-                        });
-
-                        const token = jwt.sign({ userId }, import.meta.env.JWT_SECRET);
-
-                        return new Response(token, {
-                            headers: this.createHeaders({ token, ct: "application/json" }),
-                            status: 200,
-                        });
-                    } catch (error) {
-                        return this.sendError(400, (error as Error)?.message);
-                    }
-                }
-
-                if (url.pathname === "/chat" && req.method === "GET") {
-                    try {
-                        if (!token) {
-                            throw Error("User attempted to connect with an empty token.");
-                        }
-                        const { userId } = jwt.verify(token, import.meta.env.JWT_SECRET, {
-                            maxAge: 2592000,
-                        }) as {
-                            userId: string;
-                        };
-
-                        const username = await store.get(userId || "");
-                        if (!username) {
-                            throw Error("User attempted to connect with an invalid token.");
-                        }
-
-                        const upgraded = server.upgrade(req, {
-                            data: { userId, username },
-                        });
-
-                        if (upgraded) return;
-
-                        return this.sendError(
-                            500,
-                            "Upgrade failed - Websocket server only",
-                        );
-                    } catch (error) {
-                        console.log(error);
-                        return this.sendError(403, "Invalid token!");
-                    }
-                }
-
-                return this.sendError(404, `Route not found: ${req.url}!`);
+                return router.serve(req, server, store);
             },
             websocket: {
                 maxPayloadLength: 1024 * 1024,
@@ -135,35 +64,6 @@ class WebSocketServer {
         console.log(`WebSocket server running at... ${this.server.url}`);
     }
 
-    private createHeaders({
-        token,
-        clearToken,
-        ct,
-    }: { token?: string; clearToken?: boolean; ct?: string } = {}): Headers {
-        const headers = new Headers();
-
-        if (token) {
-            headers.set("Set-Cookie", `token=${token}; path=/; Max-Age=2592000`);
-        }
-
-        if (clearToken) {
-            headers.set("Set-Cookie", `token=; path=/; Max-Age=0`);
-        }
-
-        if (ct) {
-            headers.set("Content-Type", ct);
-        }
-
-        // headers.set("Access-Control-Allow-Origin", "*");
-        // headers.set(
-        //     "Access-Control-Allow-Methods",
-        //     "GET, POST, PUT, DELETE, OPTIONS",
-        // );
-        // headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-        // headers.set("Access-Control-Max-Age", "86400");
-
-        return headers;
-    }
     private broadcast = (data: Message): void => {
         for (const { 1: client } of this.clients.entries()) {
             if (data.senderId && client.id === data.senderId) continue;
@@ -181,14 +81,6 @@ class WebSocketServer {
             );
         }
     };
-
-    private sendError(status: number, err: string): Response {
-        console.error(err);
-        return new Response(err, {
-            status,
-            headers: this.createHeaders({ clearToken: true }),
-        });
-    }
 
     private relayMessage(
         ws: WebSocketWithData,
@@ -269,7 +161,7 @@ class WebSocketServer {
         await store.connect();
         console.log("Connected to redis store!");
 
-        new WebSocketServer();
+        new WebSocketServer(router, store);
     } catch (error) {
         if (store.isOpen) {
             store.quit();
