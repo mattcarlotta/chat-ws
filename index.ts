@@ -44,18 +44,18 @@ class WebSocketServer {
                 const url = new URL(req.url);
                 const token = url.searchParams.get("token") || "";
 
-                if (req.method === "OPTIONS") {
-                    return new Response(null, {
-                        status: 204,
-                        headers: this.createHeaders(),
-                    });
-                }
+                // if (req.method === "OPTIONS") {
+                //     return new Response(null, {
+                //         status: 204,
+                //         headers: this.createHeaders(),
+                //     });
+                // }
 
                 if (
                     (url.pathname.includes("assets") || url.pathname.includes("svg")) &&
                     req.method === "GET"
                 ) {
-                    return new Response(Bun.file(`./chat-client/dist/${url.pathname}`));
+                    return new Response(Bun.file(`./chat-client/dist${url.pathname}`));
                 }
 
                 if (url.pathname === "/" && req.method === "GET") {
@@ -80,12 +80,9 @@ class WebSocketServer {
                         });
 
                         const token = jwt.sign({ userId }, import.meta.env.JWT_SECRET);
-                        const headers = this.createHeaders({ token });
-
-                        headers.set("Content-Type", "application/json");
 
                         return new Response(token, {
-                            headers,
+                            headers: this.createHeaders({ token, ct: "application/json" }),
                             status: 200,
                         });
                     } catch (error) {
@@ -125,7 +122,7 @@ class WebSocketServer {
                     }
                 }
 
-                return this.sendError(404, "Route not found!");
+                return this.sendError(404, `Route not found: ${req.url}!`);
             },
             websocket: {
                 maxPayloadLength: 1024 * 1024,
@@ -141,24 +138,29 @@ class WebSocketServer {
     private createHeaders({
         token,
         clearToken,
-    }: { token?: string; clearToken?: boolean } = {}): Headers {
+        ct,
+    }: { token?: string; clearToken?: boolean; ct?: string } = {}): Headers {
         const headers = new Headers();
 
         if (token) {
-            headers.set("Set-Cookie", `token=${token}; path=/; MaxAge=2592000`);
+            headers.set("Set-Cookie", `token=${token}; path=/; Max-Age=2592000`);
         }
 
         if (clearToken) {
-            headers.set("Set-Cookie", `token=; path=/; MaxAge=0`);
+            headers.set("Set-Cookie", `token=; path=/; Max-Age=0`);
         }
 
-        headers.set("Access-Control-Allow-Origin", "*");
-        headers.set(
-            "Access-Control-Allow-Methods",
-            "GET, POST, PUT, DELETE, OPTIONS",
-        );
-        headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-        headers.set("Access-Control-Max-Age", "86400");
+        if (ct) {
+            headers.set("Content-Type", ct);
+        }
+
+        // headers.set("Access-Control-Allow-Origin", "*");
+        // headers.set(
+        //     "Access-Control-Allow-Methods",
+        //     "GET, POST, PUT, DELETE, OPTIONS",
+        // );
+        // headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        // headers.set("Access-Control-Max-Age", "86400");
 
         return headers;
     }
@@ -252,7 +254,6 @@ class WebSocketServer {
         const { userId, username } = ws.data;
 
         this.clients.delete(userId);
-        // await store.del(userId);
 
         console.log(`Client diconnected: ${userId}`);
 
