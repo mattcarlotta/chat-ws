@@ -14,7 +14,7 @@ export default function DBProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         const connectToChat = () => {
-            const socket = new WebSocket(`ws://${import.meta.env.VITE_HOST_URL}?token=${Cookie.get("token")}`);
+            const socket = new WebSocket(`ws://${import.meta.env.VITE_HOST_URL}/chat?token=${Cookie.get("token")}`);
 
             socket.onopen = () => {
                 setConnectionStatus(ConnectionStatus.CONNECTED);

@@ -51,7 +51,18 @@ class WebSocketServer {
                     });
                 }
 
-                if (url.pathname === "/" && req.method === "POST" && !token) {
+                if (
+                    (url.pathname.includes("assets") || url.pathname.includes("svg")) &&
+                    req.method === "GET"
+                ) {
+                    return new Response(Bun.file(`./chat-client/dist/${url.pathname}`));
+                }
+
+                if (url.pathname === "/" && req.method === "GET") {
+                    return new Response(Bun.file(`./chat-client/dist/index.html`));
+                }
+
+                if (url.pathname === "/" && req.method === "POST") {
                     try {
                         const { username, password } = (await req.json()) as {
                             username: string;
@@ -69,7 +80,7 @@ class WebSocketServer {
                         });
 
                         const token = jwt.sign({ userId }, import.meta.env.JWT_SECRET);
-                        const headers = this.createHeaders();
+                        const headers = this.createHeaders({ token });
 
                         headers.set("Content-Type", "application/json");
 
@@ -82,31 +93,39 @@ class WebSocketServer {
                     }
                 }
 
-                try {
-                    if (!token) {
-                        throw Error("User attempted to connect with an empty token.");
+                if (url.pathname === "/chat" && req.method === "GET") {
+                    try {
+                        if (!token) {
+                            throw Error("User attempted to connect with an empty token.");
+                        }
+                        const { userId } = jwt.verify(token, import.meta.env.JWT_SECRET, {
+                            maxAge: 2592000,
+                        }) as {
+                            userId: string;
+                        };
+
+                        const username = await store.get(userId || "");
+                        if (!username) {
+                            throw Error("User attempted to connect with an invalid token.");
+                        }
+
+                        const upgraded = server.upgrade(req, {
+                            data: { userId, username },
+                        });
+
+                        if (upgraded) return;
+
+                        return this.sendError(
+                            500,
+                            "Upgrade failed - Websocket server only",
+                        );
+                    } catch (error) {
+                        console.log(error);
+                        return this.sendError(403, "Invalid token!");
                     }
-                    const { userId } = jwt.verify(token, import.meta.env.JWT_SECRET, {
-                        maxAge: 2592000,
-                    }) as {
-                        userId: string;
-                    };
-
-                    const username = await store.get(userId || "");
-                    if (!username) {
-                        throw Error("User attempted to connect with an invalid token.");
-                    }
-                    const upgraded = server.upgrade(req, {
-                        data: { userId, username },
-                    });
-
-                    if (upgraded) return;
-
-                    return this.sendError(500, "Upgrade failed - Websocket server only");
-                } catch (error) {
-                    console.log(error);
-                    return this.sendError(403, "Invalid token!");
                 }
+
+                return this.sendError(404, "Route not found!");
             },
             websocket: {
                 maxPayloadLength: 1024 * 1024,
@@ -119,8 +138,19 @@ class WebSocketServer {
         console.log(`WebSocket server running at... ${this.server.url}`);
     }
 
-    private createHeaders(): Headers {
+    private createHeaders({
+        token,
+        clearToken,
+    }: { token?: string; clearToken?: boolean } = {}): Headers {
         const headers = new Headers();
+
+        if (token) {
+            headers.set("Set-Cookie", `token=${token}; path=/; MaxAge=2592000`);
+        }
+
+        if (clearToken) {
+            headers.set("Set-Cookie", `token=; path=/; MaxAge=0`);
+        }
 
         headers.set("Access-Control-Allow-Origin", "*");
         headers.set(
@@ -154,7 +184,7 @@ class WebSocketServer {
         console.error(err);
         return new Response(err, {
             status,
-            headers: this.createHeaders(),
+            headers: this.createHeaders({ clearToken: true }),
         });
     }
 

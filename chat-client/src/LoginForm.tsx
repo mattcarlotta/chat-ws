@@ -1,6 +1,6 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
-import Cookie from "js-cookie";
+// import Cookie from "js-cookie";
 import Nav from "./Nav";
 import useWebSocketContext from "./useWebSocketContext";
 import { ConnectionStatus } from "./types";
@@ -34,7 +34,7 @@ export default function LoginForm() {
                 throw Error(data || "Unable to get token!");
             }
 
-            Cookie.set("token", data, { path: "/", expires: 2592000 });
+            // Cookie.set("token", data, { path: "/", expires: 2592000 });
 
             setConnectionStatus(ConnectionStatus.CONNECTING);
         } catch (error) {
