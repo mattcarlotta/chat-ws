@@ -186,7 +186,11 @@ export default class Router implements RouterI {
             return response;
         } catch (error) {
             const err = error as ResponseError;
-            return new Response(err?.error || err?.message, {
+            const e = err?.error || err?.message;
+            console.error(e);
+
+            return new Response(e, {
+                headers: this.createHeaders({ clearToken: true }),
                 status: err?.statusCode,
             });
         }

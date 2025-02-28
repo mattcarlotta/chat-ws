@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { randomUUIDv7 } from "bun";
 import Router from "./router";
 import { ServerError, ValidationError } from "./errors";
 
@@ -18,7 +19,7 @@ router
             );
         }
 
-        const userId = crypto.randomUUID();
+        const userId = randomUUIDv7();
         await store.set(userId, username, {
             EX: 2592000,
         });

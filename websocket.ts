@@ -8,6 +8,7 @@ import type {
 } from "./types";
 import type { RouterI } from "./router";
 import { MessageType } from "./types";
+import { randomUUIDv7 } from "bun";
 
 export interface WebSocketServerI {
     start(): Promise<void>;
@@ -61,7 +62,7 @@ export default class WebSocketServer implements WebSocketServerI {
             client.socket.send(
                 JSON.stringify({
                     type: data.type,
-                    id: crypto.randomUUID(),
+                    id: randomUUIDv7(),
                     connectedClients: this.clients.size,
                     message: data.message,
                     sentByCurrentUser: client.id === data.userId,
@@ -82,7 +83,7 @@ export default class WebSocketServer implements WebSocketServerI {
         ws.send(
             JSON.stringify({
                 type: data.type,
-                id: crypto.randomUUID(),
+                id: randomUUIDv7(),
                 connectedClients: this.clients.size,
                 error: data.error,
                 sentByCurrentUser: data.type === MessageType.USER_MESSAGE,
