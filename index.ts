@@ -1,11 +1,5 @@
 import type { Server, ServerWebSocket } from "bun";
-import type { RouterInterface } from "./router";
-import type {
-    RedisClientType,
-    RedisFunctions,
-    RedisModules,
-    RedisScripts,
-} from "@redis/client";
+import type { RouterInterface, RedisStore } from "./router";
 import { createClient } from "@redis/client";
 import router from "./router";
 
@@ -44,10 +38,7 @@ class WebSocketServer {
     private clients: Map<string, Client> = new Map();
     private server: Server;
 
-    constructor(
-        router: RouterInterface,
-        store: RedisClientType<RedisModules, RedisFunctions, RedisScripts>,
-    ) {
+    constructor(router: RouterInterface, store: RedisStore) {
         this.server = Bun.serve({
             port: String(process.env.PORT || 8080),
             fetch: async (req, server): Promise<Response | undefined> => {

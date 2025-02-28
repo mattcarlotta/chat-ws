@@ -6,7 +6,12 @@ import type {
     RedisScripts,
 } from "@redis/client";
 import jwt from "jsonwebtoken";
-import { createHeaders, sendError } from "./utils";
+
+export type RedisStore = RedisClientType<
+    RedisModules,
+    RedisFunctions,
+    RedisScripts
+>;
 
 export enum Method {
     ALL = "ALL",
@@ -20,10 +25,12 @@ export enum Method {
 }
 
 export type Controller = (
+    this: Router,
     req: Request,
     server: Server,
-    store: RedisClientType<RedisModules, RedisFunctions, RedisScripts>,
+    store: RedisStore,
 ) => Promise<Response | undefined> | Response | undefined;
+
 export type Route = Map<string, Controller>;
 
 export interface RouterInterface {
@@ -39,8 +46,18 @@ export interface RouterInterface {
     serve(
         req: Request,
         server: Server,
-        store: RedisClientType<RedisModules, RedisFunctions, RedisScripts>,
+        store: RedisStore,
     ): Promise<Response | undefined> | Response | undefined;
+    sendError(status: number, err: string): Response;
+    createHeaders({
+        token,
+        clearToken,
+        ct,
+    }: {
+        token?: string;
+        clearToken?: boolean;
+        ct?: string;
+    }): Headers;
 }
 
 class Router implements RouterInterface {
@@ -52,7 +69,11 @@ class Router implements RouterInterface {
         this.statics = new Map();
     }
 
-    private register(method: Method, path: string, controller: Controller) {
+    private register(
+        method: Method,
+        path: string,
+        controller: Controller,
+    ): Router {
         const registeredPath = this.controllers.get(path);
         if (registeredPath) {
             const registeredCallback = registeredPath.get(method);
@@ -73,39 +94,39 @@ class Router implements RouterInterface {
         return this;
     }
 
-    public all(path: string, controller: Controller) {
+    public all(path: string, controller: Controller): Router {
         return this.register(Method.ALL, path, controller);
     }
 
-    public get(path: string, controller: Controller) {
+    public get(path: string, controller: Controller): Router {
         return this.register(Method.GET, path, controller);
     }
 
-    public put(path: string, controller: Controller) {
+    public put(path: string, controller: Controller): Router {
         return this.register(Method.PUT, path, controller);
     }
 
-    public patch(path: string, controller: Controller) {
+    public patch(path: string, controller: Controller): Router {
         return this.register(Method.PATCH, path, controller);
     }
 
-    public post(path: string, controller: Controller) {
+    public post(path: string, controller: Controller): Router {
         return this.register(Method.POST, path, controller);
     }
 
-    public delete(path: string, controller: Controller) {
+    public delete(path: string, controller: Controller): Router {
         return this.register(Method.DELETE, path, controller);
     }
 
-    public head(path: string, controller: Controller) {
+    public head(path: string, controller: Controller): Router {
         return this.register(Method.HEAD, path, controller);
     }
 
-    public options(path: string, controller: Controller) {
+    public options(path: string, controller: Controller): Router {
         return this.register(Method.OPTIONS, path, controller);
     }
 
-    public static(directory: string, controller: Controller) {
+    public static(directory: string, controller: Controller): Router {
         if (this.statics.has(directory)) {
             throw new Error(`The ${directory} can only be registed once.`);
         }
@@ -119,7 +140,7 @@ class Router implements RouterInterface {
         req: Request,
         server: Server,
         store: RedisClientType<RedisModules, RedisFunctions, RedisScripts>,
-    ) {
+    ): Promise<Response | undefined> | Response | undefined {
         const url = new URL(req.url);
 
         const registeredDirectoryKeys = Array.from(this.statics.keys());
@@ -131,7 +152,7 @@ class Router implements RouterInterface {
             if (key) {
                 const controller = this.statics.get(key);
                 if (controller) {
-                    return controller(req, server, store);
+                    return controller.call(this, req, server, store);
                 }
             }
         }
@@ -146,24 +167,60 @@ class Router implements RouterInterface {
             return new Response("Route not found", { status: 404 });
         }
 
-        return registeredCallback(req, server, store);
+        return registeredCallback.call(this, req, server, store);
+    }
+
+    public sendError(status: number, err: string): Response {
+        console.error(err);
+        return new Response(err, {
+            status,
+            headers: this.createHeaders({ clearToken: true }),
+        });
+    }
+
+    public createHeaders({
+        token,
+        clearToken,
+        ct,
+    }: { token?: string; clearToken?: boolean; ct?: string } = {}): Headers {
+        const headers = new Headers();
+
+        if (token) {
+            headers.set("Set-Cookie", `token=${token}; path=/; Max-Age=2592000`);
+        }
+
+        if (clearToken) {
+            headers.set("Set-Cookie", `token=; path=/; Max-Age=0`);
+        }
+
+        if (ct) {
+            headers.set("Content-Type", ct);
+        }
+
+        // headers.set("Access-Control-Allow-Origin", "*");
+        // headers.set(
+        //     "Access-Control-Allow-Methods",
+        //     "GET, POST, PUT, DELETE, OPTIONS",
+        // );
+        // headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        // headers.set("Access-Control-Max-Age", "86400");
+
+        return headers;
     }
 }
 
 const router = new Router();
 
 router
-    .get("/", () => {
-        return new Response(Bun.file(`./chat-client/dist/index.html`));
-    })
-    .post("/", async (req, _, store) => {
+    .get("/", () => new Response(Bun.file(`./chat-client/dist/index.html`)))
+    .post("/", async function(req, _, store) {
         try {
             const { username, password } = (await req.json()) as {
                 username: string;
                 password: string;
             };
             if (!username || password !== import.meta.env.PASSWORD) {
-                return sendError(
+                return this.sendError(
                     403,
                     "You must sign in with a username before you can chat!",
                 );
@@ -176,14 +233,14 @@ router
             const token = jwt.sign({ userId }, import.meta.env.JWT_SECRET);
 
             return new Response(token, {
-                headers: createHeaders({ token, ct: "application/json" }),
+                headers: this.createHeaders({ token, ct: "application/json" }),
                 status: 200,
             });
         } catch (error) {
-            return sendError(400, (error as Error)?.message);
+            return this.sendError(400, (error as Error)?.message);
         }
     })
-    .get("/chat", async (req, server, store) => {
+    .get("/chat", async function(req, server, store) {
         const url = new URL(req.url);
         try {
             const token = url.searchParams.get("token") || "";
@@ -207,10 +264,10 @@ router
 
             if (upgraded) return;
 
-            return sendError(500, "Upgrade failed - Websocket server only");
+            return this.sendError(500, "Upgrade failed - Websocket server only");
         } catch (error) {
             console.log(error);
-            return sendError(403, "Invalid token!");
+            return this.sendError(403, "Invalid token!");
         }
     })
     .static("assets", (req) => {
