@@ -1,10 +1,11 @@
 import type { ChangeEvent, FormEvent } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import SendIcon from "./SendIcon";
 import useWebSocketContext from "./useWebSocketContext";
 
 export default function SendChatMessageForm() {
     const { socket } = useWebSocketContext();
+    const chatInputRef = useRef<HTMLInputElement | null>(null);
     const [message, setMessage] = useState("");
 
     const handleMessageChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -20,6 +21,10 @@ export default function SendChatMessageForm() {
         socket?.send(message);
     };
 
+    useEffect(() => {
+        chatInputRef.current?.focus();
+    }, []);
+
     return (
         <div className="sticky bottom-0">
             <div className="relative mx-auto flex h-full w-full max-w-3xl flex-1 flex-col md:px-2">
@@ -31,8 +36,9 @@ export default function SendChatMessageForm() {
                         <div className="flex space-x-2 bg-white rounded">
                             <div className="flex-1">
                                 <input
+                                    ref={chatInputRef}
                                     id="send-message"
-                                    placeholder="Send a message..."
+                                    placeholder="Send a chat message..."
                                     className="w-full text-black p-2.5 rounded"
                                     autoComplete="off"
                                     type="text"
