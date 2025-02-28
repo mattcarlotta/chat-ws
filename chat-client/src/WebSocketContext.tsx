@@ -17,6 +17,7 @@ export default function DBProvider({ children }: { children: ReactNode }) {
             const socket = new WebSocket(`ws://${import.meta.env.VITE_HOST_URL}/chat?token=${Cookie.get("token")}`);
 
             socket.onopen = () => {
+                console.log("Connected to chat server...");
                 setConnectionStatus(ConnectionStatus.CONNECTED);
             };
 
@@ -33,7 +34,7 @@ export default function DBProvider({ children }: { children: ReactNode }) {
             };
 
             socket.onerror = (error) => {
-                console.error(`Chat error: ${error}`);
+                console.error(`Chat server encountered an error: ${error}`);
                 setError(`Chat error: ${error}`);
                 setConnectionStatus(ConnectionStatus.ERROR);
             };
