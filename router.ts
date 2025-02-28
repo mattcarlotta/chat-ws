@@ -1,18 +1,29 @@
+import type { ResponseError } from "./errors";
 import type { RedisStore, Req, Server } from "./types";
 import { Method } from "./types";
+
+export type RouterResponse =
+    | Promise<Response | undefined | void>
+    | Response
+    | undefined
+    | void;
 
 type Controller = (
     this: Router,
     req: Req,
     server: Server,
     store: RedisStore,
-) => Promise<Response | undefined> | Response | undefined;
+) => RouterResponse;
 
 type Route = Map<string, Controller>;
 
-export type RouterI = typeof Router;
-
-export interface RouterInterface {
+export interface RouterI {
+    controllerHandler(
+        controller: Controller,
+        req: Request,
+        server: Server,
+        store: RedisStore,
+    ): Promise<Response | undefined | void>;
     all(path: string, controller: Controller): Router;
     get(path: string, controller: Controller): Router;
     put(path: string, controller: Controller): Router;
@@ -22,11 +33,7 @@ export interface RouterInterface {
     head(path: string, controller: Controller): Router;
     options(path: string, controller: Controller): Router;
     static(directory: string, controller: Controller): Router;
-    serve(
-        req: Request,
-        server: Server,
-        store: RedisStore,
-    ): Promise<Response | undefined> | Response | undefined;
+    serve(req: Request, server: Server, store: RedisStore): RouterResponse;
     sendError(status: number, err: string): Response;
     createHeaders({
         token,
@@ -39,13 +46,53 @@ export interface RouterInterface {
     }): Headers;
 }
 
-export default class Router implements RouterInterface {
+export default class Router implements RouterI {
     private controllers: Map<string, Route>;
     private statics: Map<string, Controller>;
+    private staticKeys: string[];
 
     constructor() {
         this.controllers = new Map();
         this.statics = new Map();
+        this.staticKeys = [];
+    }
+
+    public sendError(status: number, err: string): Response {
+        console.error(err);
+        return new Response(err, {
+            status,
+            headers: this.createHeaders({ clearToken: true }),
+        });
+    }
+
+    public createHeaders({
+        token,
+        clearToken,
+        ct,
+    }: { token?: string; clearToken?: boolean; ct?: string } = {}): Headers {
+        const headers = new Headers();
+
+        if (token) {
+            headers.set("Set-Cookie", `token=${token}; path=/; Max-Age=2592000`);
+        }
+
+        if (clearToken) {
+            headers.set("Set-Cookie", `token=; path=/; Max-Age=0`);
+        }
+
+        if (ct) {
+            headers.set("Content-Type", ct);
+        }
+
+        // headers.set("Access-Control-Allow-Origin", "*");
+        // headers.set(
+        //     "Access-Control-Allow-Methods",
+        //     "GET, POST, PUT, DELETE, OPTIONS",
+        // );
+        // headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        // headers.set("Access-Control-Max-Age", "86400");
+
+        return headers;
     }
 
     private register(
@@ -117,6 +164,7 @@ export default class Router implements RouterInterface {
         }
 
         this.statics.set(asset, controller);
+        this.staticKeys.push(asset);
 
         if (process.env.DEBUG) {
             console.debug(
@@ -127,79 +175,48 @@ export default class Router implements RouterInterface {
         return this;
     }
 
-    public serve(
+    public controllerHandler = async (
+        controller: Controller,
         req: Req,
         server: Server,
         store: RedisStore,
-    ): Promise<Response | undefined> | Response | undefined {
+    ): Promise<Response | undefined | void> => {
+        try {
+            const response = await controller.call(this, req, server, store);
+            return response;
+        } catch (error) {
+            const err = error as ResponseError;
+            return new Response(err?.error || err?.message, {
+                status: err?.statusCode,
+            });
+        }
+    };
+
+    public serve(req: Req, server: Server, store: RedisStore): RouterResponse {
         req.URL = new URL(req.url);
 
-        const registeredDirectoryKeys = Array.from(this.statics.keys());
-        if (registeredDirectoryKeys.length) {
-            const key = registeredDirectoryKeys.find((key) =>
-                req.URL.pathname.includes(key),
-            );
+        if (this.staticKeys.length) {
+            const key =
+                this.staticKeys.find((key) => req.URL.pathname.includes(key)) || "";
+            const controller = this.statics.get(key);
 
-            if (key) {
-                const controller = this.statics.get(key);
-                if (controller) {
-                    if (req.method !== Method.GET) {
-                        console.error(`Unable "${req.method}" to static directories!`);
-                        return new Response("Bad Req", { status: 400 });
-                    }
-                    return controller.call(this, req, server, store);
-                }
+            if (controller) {
+                return req.method === Method.GET
+                    ? this.controllerHandler(controller, req, server, store)
+                    : this.sendError(404, "Not found.");
             }
         }
 
         const registeredPath = this.controllers.get(req.URL.pathname);
         if (!registeredPath) {
-            return new Response("Route not found", { status: 404 });
+            return this.sendError(404, "Not found.");
         }
 
         const registeredCallback = registeredPath.get(req.method);
         if (!registeredCallback) {
-            return new Response("Route not found", { status: 404 });
+            return this.sendError(404, "Not found.");
         }
 
-        return registeredCallback.call(this, req, server, store);
-    }
-
-    public sendError(status: number, err: string): Response {
-        console.error(err);
-        return new Response(err, {
-            status,
-            headers: this.createHeaders({ clearToken: true }),
-        });
-    }
-
-    public createHeaders({
-        token,
-        clearToken,
-        ct,
-    }: { token?: string; clearToken?: boolean; ct?: string } = {}): Headers {
-        const headers = new Headers();
-
-        if (token) {
-            headers.set("Set-Cookie", `token=${token}; path=/; Max-Age=2592000`);
-        }
-
-        if (clearToken) {
-            headers.set("Set-Cookie", `token=; path=/; Max-Age=0`);
-        }
-
-        if (ct) {
-            headers.set("Content-Type", ct);
-        }
-
-        // headers.set("Access-Control-Allow-Origin", "*");
-        // headers.set(
-        //     "Access-Control-Allow-Methods",
-        //     "GET, POST, PUT, DELETE, OPTIONS",
-        // );
-        // headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-        // headers.set("Access-Control-Max-Age", "86400");
-
-        return headers;
+        return this.controllerHandler(registeredCallback, req, server, store);
     }
 }

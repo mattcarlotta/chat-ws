@@ -6,24 +6,28 @@ import type {
     Server,
     WebSocketWithData,
 } from "./types";
-import type { RouterInterface } from "./router";
+import type { RouterI } from "./router";
 import { MessageType } from "./types";
 
-export default class WebSocketServer {
+export interface WebSocketServerI {
+    start(): Promise<void>;
+}
+
+export default class WebSocketServer implements WebSocketServerI {
     private clients: Map<string, Client> = new Map();
     private server: Server | null;
-    private router: RouterInterface;
+    private router: RouterI;
     private store: RedisStore;
     private port: string;
 
-    constructor(port = "8080", router: RouterInterface, store: RedisStore) {
+    constructor(port = "8080", router: RouterI, store: RedisStore) {
         this.router = router;
         this.store = store;
         this.port = port;
         this.server = null;
     }
 
-    public start = async () => {
+    public start = async (): Promise<void> => {
         try {
             await this.store.connect();
             console.log(`Connected to redis store... `);
@@ -126,9 +130,7 @@ export default class WebSocketServer {
         }
     };
 
-    private handleDisconnection = async (
-        ws: WebSocketWithData,
-    ): Promise<void> => {
+    private handleDisconnection = (ws: WebSocketWithData): void => {
         const { userId, username } = ws.data;
 
         this.clients.delete(userId);
