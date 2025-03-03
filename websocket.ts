@@ -2,7 +2,6 @@ import type {
     Client,
     Message,
     RedisStore,
-    Req,
     Server,
     WebSocketWithData,
 } from "./types";
@@ -10,6 +9,8 @@ import type { RouterI } from "./router";
 import { MessageType } from "./types";
 import { randomUUIDv7 } from "bun";
 import type { Database } from "bun:sqlite";
+import { findUserById, getAllMessages, saveMessage } from "./db";
+import { AuthValidationError, ValidationError } from "./errors";
 
 export interface WebSocketServerI {
     start(): Promise<void>;
@@ -40,8 +41,7 @@ export default class WebSocketServer implements WebSocketServerI {
 
             this.server = Bun.serve({
                 port: this.port,
-                fetch: (req, server) =>
-                    this.router.serve(req as Req, server, this.store),
+                fetch: (req, server) => this.router.serve(req, server, this.store),
                 websocket: {
                     maxPayloadLength: 1024 * 1024,
                     open: this.handleConnection,
@@ -82,7 +82,7 @@ export default class WebSocketServer implements WebSocketServerI {
                     connectedClients: this.clients.size,
                     message: data.message,
                     sentByCurrentUser: client.id === data.userId,
-                    timestamp: new Date().toISOString(),
+                    createdAt: data.createdAt || new Date().toISOString(),
                     username: data.username,
                 }),
             );
@@ -94,6 +94,7 @@ export default class WebSocketServer implements WebSocketServerI {
         data: {
             type: MessageType;
             error?: string;
+            messages?: Message[];
         },
     ): void {
         ws.send(
@@ -103,7 +104,8 @@ export default class WebSocketServer implements WebSocketServerI {
                 connectedClients: this.clients.size,
                 error: data.error,
                 sentByCurrentUser: data.type === MessageType.USER_MESSAGE,
-                timestamp: new Date().toISOString(),
+                messages: data.messages,
+                createdAt: new Date().toISOString(),
                 username: ws.data.username,
             }),
         );
@@ -112,15 +114,22 @@ export default class WebSocketServer implements WebSocketServerI {
     private handleConnection = (ws: WebSocketWithData): void => {
         const { userId, username } = ws.data;
 
-        console.log(`Client connected: ${userId}`);
+        const messages = getAllMessages(userId);
 
-        if (this.clients.has(userId)) {
-            console.log(`Client ${userId} already connected. Reconnecting.`);
+        const clientConnection = this.clients.get(userId);
+        if (clientConnection) {
+            console.log(
+                `Client ${clientConnection.id} already connected. Disconnecting old connection...`,
+            );
+            clientConnection.socket.close();
+            this.clients.delete(userId);
         }
+
+        console.log(`Client connected: ${userId}`);
 
         this.clients.set(userId, { id: userId, username, socket: ws });
 
-        this.relayMessage(ws, { type: MessageType.WELCOME });
+        this.relayMessage(ws, { type: MessageType.WELCOME, messages });
 
         this.broadcast({
             type: MessageType.USER_JOINED,
@@ -129,14 +138,31 @@ export default class WebSocketServer implements WebSocketServerI {
         });
     };
 
-    private handleMessage = (ws: WebSocketWithData, message: string): void => {
+    private handleMessage = async (
+        ws: WebSocketWithData,
+        message: string,
+    ): Promise<void> => {
         try {
-            if (!message) throw Error("You must provide a message!");
+            const { userId } = ws.data;
+            if (!message) {
+                throw new ValidationError("You must provide a message!");
+            }
 
+            const user = findUserById(userId);
+            if (!user) {
+                throw new AuthValidationError(
+                    "You must be logged in to send a message!",
+                );
+            }
+
+            const savedMessage = saveMessage(userId, message);
             this.broadcast({
-                ...ws.data,
-                type: MessageType.USER_MESSAGE,
+                type: savedMessage.type,
+                id: savedMessage.id,
+                userId: user.id,
                 message,
+                createdAt: savedMessage.createdAt,
+                username: savedMessage.username,
             });
         } catch (error) {
             console.error(`Error parsing message: `, error);

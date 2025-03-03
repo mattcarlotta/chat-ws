@@ -64,5 +64,5 @@ export interface Message {
     userId?: string;
     senderId?: string;
     message?: string;
-    created_at: string;
+    createdAt: string;
 }

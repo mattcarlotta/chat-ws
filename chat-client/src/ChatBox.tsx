@@ -31,7 +31,7 @@ export default function NavBox() {
                 {messages.map((m, index) => (
                     <div
                         title={new Intl.DateTimeFormat("en-US", { dateStyle: "full", timeStyle: "long" }).format(
-                            new Date(m.timestamp)
+                            new Date(m.createdAt)
                         )}
                         className="grid grid-cols-2 gap-y-0.5 md:gap-y-0 md:gap-x-4 md:grid-cols-4"
                         key={m.id}
@@ -56,8 +56,13 @@ export default function NavBox() {
                                 ),
                                 [MessageType.USER_MESSAGE]: (
                                     <>
-                                        {m.sentByCurrentUser && <div className="col-span-2 md:col-span-1" />}
-                                        <div className={clsx("col-span-3", m.sentByCurrentUser && "flex justify-end")}>
+                                        {Boolean(m.sentByCurrentUser) && <div className="col-span-2 md:col-span-1" />}
+                                        <div
+                                            className={clsx(
+                                                "col-span-3",
+                                                Boolean(m.sentByCurrentUser) && "flex justify-end"
+                                            )}
+                                        >
                                             {!m.sentByCurrentUser && <p className="italic">{m.username} says...</p>}
                                             <p
                                                 className={clsx(

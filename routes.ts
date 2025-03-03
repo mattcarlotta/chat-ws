@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import Router from "./router";
 import { AuthValidationError, ServerError, ValidationError } from "./errors";
-import { createUser, findUser, findUserByEmail } from "./db";
+import { createUser, findUser, findUserByEmail, getAllMessages } from "./db";
 
 type ReqBodyPayload = { username: string; password: string; email: string };
 type JWTUserId = { userId: string };
@@ -35,7 +35,7 @@ router
             String(import.meta.env.JWT_SECRET),
         );
 
-        return new Response(token, {
+        return new Response(null, {
             headers: this.createHeaders({ token, ct: "application/json" }),
             status: 200,
         });

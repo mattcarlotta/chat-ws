@@ -19,8 +19,9 @@ export interface Message {
     id: string;
     connectedClients: number;
     message?: string;
-    sentByCurrentUser: boolean;
-    timestamp: string;
+    messages?: Message[];
+    sentByCurrentUser: number;
+    createdAt: string;
     username: string;
 }
 
@@ -30,5 +31,6 @@ export interface WebSocketContextT {
     messages: Message[];
     onlineUsers: number;
     setConnectionStatus: (s: ConnectionStatus) => void;
+    setMessages: (m: Message[]) => void;
     socket: WebSocket | null;
 }

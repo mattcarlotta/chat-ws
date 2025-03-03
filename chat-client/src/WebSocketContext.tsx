@@ -23,10 +23,11 @@ export default function DBProvider({ children }: { children: ReactNode }) {
 
             socket.onmessage = (event) => {
                 try {
-                    const message: Message = JSON.parse(event.data);
+                    const data: Message = JSON.parse(event.data);
+                    const initMessages = data.messages || [];
 
-                    setOnlineUsers(message.connectedClients);
-                    setMessages((prevMess) => [...prevMess, message]);
+                    setOnlineUsers(data.connectedClients);
+                    setMessages((prevMess) => [...prevMess, ...initMessages, data]);
                 } catch (error) {
                     setError((error as Error)?.message);
                     setConnectionStatus(ConnectionStatus.ERROR);
@@ -68,6 +69,7 @@ export default function DBProvider({ children }: { children: ReactNode }) {
                 messages,
                 onlineUsers,
                 setConnectionStatus,
+                setMessages,
                 socket
             }}
         >

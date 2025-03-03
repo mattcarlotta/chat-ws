@@ -33,12 +33,10 @@ export default function LoginForm() {
                 }
             });
 
-            const data = await res.text();
-            if (!res.ok || !data) {
+            if (!res.ok) {
+                const data = await res.text();
                 throw Error(data || "There was a problem logging in. Please try again.");
             }
-
-            // Cookie.set("token", data, { path: "/", expires: 2592000 });
 
             setConnectionStatus(ConnectionStatus.CONNECTING);
         } catch (error) {

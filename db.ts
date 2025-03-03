@@ -1,4 +1,4 @@
-import type { Message, MessageType, User } from "./types";
+import { MessageType, type Message, type User } from "./types";
 import { randomUUIDv7, password as passordUtil } from "bun";
 import Database from "bun:sqlite";
 
@@ -29,6 +29,11 @@ db.query(
 ).run();
 
 db.query(`CREATE UNIQUE INDEX IF NOT EXISTS userIdIndex ON "users" (id)`).run();
+
+export function findUserById(id: string): User | null {
+    const stmt = db.prepare("SELECT * FROM users WHERE id = ?");
+    return stmt.get(id) as User | null;
+}
 
 export function findUserByEmail(email: string): User | null {
     const stmt = db.prepare("SELECT * FROM users WHERE email = ?");
@@ -71,18 +76,15 @@ export function getUserById(id: string): User | null {
     return stmt.get(id) as User | null;
 }
 
-export function saveMessage(
-    id: string,
-    type: MessageType,
-    userId: string,
-    message: string,
-): Message {
+export function saveMessage(userId: string, message: string): Message {
+    const id = randomUUIDv7();
+
     const stmt = db.prepare(`
         INSERT into messages (id, type, userId, message)
         VALUES (?, ?, ?, ?)
     `);
 
-    stmt.run(id, type, userId, message);
+    stmt.run(id, MessageType.USER_MESSAGE, userId, message);
 
     return getMessageById(id) as Message;
 }
@@ -104,7 +106,7 @@ export function getMessageById(messageId: string): Message | null {
     return stmt.get(messageId) as Message | null;
 }
 
-export function getAllMessages(): Message[] {
+export function getAllMessages(userId: string): Message[] {
     const stmt = db.prepare(`
     SELECT * FROM (
         SELECT 
@@ -113,7 +115,12 @@ export function getAllMessages(): Message[] {
             m.message,
             m.createdAt,
             m.userId,
-            u.username
+            u.username,
+            CASE 
+                WHEN u.id = ? 
+                    THEN 1 
+                    ELSE 0 
+            END AS sentByCurrentUser
         FROM messages m
         JOIN users u ON m.userId = u.id
         ORDER BY m.createdAt DESC
@@ -122,7 +129,7 @@ export function getAllMessages(): Message[] {
     ORDER BY createdAt ASC
   `);
 
-    return stmt.all() as Message[];
+    return stmt.all(userId) as Message[];
 }
 
 export default db;

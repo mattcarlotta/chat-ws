@@ -9,7 +9,7 @@ const ws = new WebSocketServer(Bun.env.PORT, routes, store, db);
 
 ws.start();
 
-["SIGINT", "SIGTERM", "SIGQUIT"].forEach((signal) => {
+for (const signal of ["SIGINT", "SIGTERM", "SIGQUIT"]) {
     process.on(signal, () => {
         console.log(
             `\nReceived ${signal}, closing websocket, redis and sqlite connections...`,
@@ -17,4 +17,4 @@ ws.start();
         ws.shutdown();
         process.exit(0);
     });
-});
+}
