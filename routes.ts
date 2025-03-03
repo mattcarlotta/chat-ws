@@ -1,36 +1,68 @@
 import jwt from "jsonwebtoken";
-import { randomUUIDv7 } from "bun";
 import Router from "./router";
-import { ServerError, ValidationError } from "./errors";
+import { AuthValidationError, ServerError, ValidationError } from "./errors";
+import { createUser, findUser, findUserByEmail } from "./db";
 
-type JWTPayload = { username: string; password: string };
+type ReqBodyPayload = { username: string; password: string; email: string };
 type JWTUserId = { userId: string };
 
 const router = new Router();
 
 router
     .get("/", () => new Response(Bun.file(`./chat-client/dist/index.html`)))
-    .post("/", async function(req, _server, store) {
-        const { username, password } = (await req.json()) as JWTPayload;
+    .post("/login", async function(req, _server, store) {
+        const { email, password } = (await req.json()) as ReqBodyPayload;
 
-        if (!username || password !== import.meta.env.PASSWORD) {
-            throw new ValidationError(
+        if (!email || !password) {
+            throw new AuthValidationError(
                 "You must be signed in with a username before you can chat!",
             );
         }
 
-        const userId = randomUUIDv7();
-        await store.set(userId, username, {
+        const user = await findUser(email, password);
+        if (!user) {
+            throw new AuthValidationError(
+                "The email and/or password provided is not valid. Please try again.",
+            );
+        }
+
+        await store.set(user.id, user.username, {
             EX: 2592000,
         });
 
-        const token = jwt.sign({ userId }, String(import.meta.env.JWT_SECRET));
+        const token = jwt.sign(
+            { userId: user.id },
+            String(import.meta.env.JWT_SECRET),
+        );
 
         return new Response(token, {
             headers: this.createHeaders({ token, ct: "application/json" }),
             status: 200,
         });
     })
+    .post("/register", async function(req, _server, _store) {
+        const { username, password, email } = (await req.json()) as ReqBodyPayload;
+
+        if (!username || !password || !email) {
+            throw new ValidationError(
+                "You must provide an email, username and password to register!",
+            );
+        }
+
+        const userAlreadyExists = findUserByEmail(email);
+        if (userAlreadyExists) {
+            return new Response(null, {
+                status: 201,
+            });
+        }
+
+        await createUser(username, password, email);
+
+        return new Response(null, {
+            status: 201,
+        });
+    })
+
     .get("/chat", async function(req, server, store) {
         const token = req.URL.searchParams.get("token") || "";
         if (!token) {

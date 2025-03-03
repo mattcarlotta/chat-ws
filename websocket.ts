@@ -9,9 +9,11 @@ import type {
 import type { RouterI } from "./router";
 import { MessageType } from "./types";
 import { randomUUIDv7 } from "bun";
+import type { Database } from "bun:sqlite";
 
 export interface WebSocketServerI {
     start(): Promise<void>;
+    shutdown(): void;
 }
 
 export default class WebSocketServer implements WebSocketServerI {
@@ -20,18 +22,21 @@ export default class WebSocketServer implements WebSocketServerI {
     private router: RouterI;
     private store: RedisStore;
     private port: string;
+    private db: Database;
 
-    constructor(port = "8080", router: RouterI, store: RedisStore) {
+    constructor(port = "8080", router: RouterI, store: RedisStore, db: Database) {
         this.router = router;
         this.store = store;
         this.port = port;
         this.server = null;
+        this.db = db;
     }
 
     public start = async (): Promise<void> => {
         try {
             await this.store.connect();
             console.log(`Connected to redis store... `);
+            console.log(`Connected to sqlite db... `);
 
             this.server = Bun.serve({
                 port: this.port,
@@ -45,17 +50,28 @@ export default class WebSocketServer implements WebSocketServerI {
                 },
             });
 
-            console.log(`WebSocket server running at... ${this.server.url}`);
+            console.log(
+                `Started a web socket server running at... ${this.server.url}`,
+            );
         } catch (error) {
-            if (this.store.isOpen) {
-                this.store.quit();
-            }
             console.error(error);
             process.exit(1);
         }
     };
 
-    private broadcast = (data: Message): void => {
+    public shutdown = () => {
+        if (this.server) {
+            this.server.stop();
+        }
+
+        if (this.store.isOpen) {
+            this.store.quit();
+        }
+
+        this.db.close();
+    };
+
+    private broadcast = (data: Partial<Message>): void => {
         for (const { 1: client } of this.clients.entries()) {
             if (data.senderId && client.id === data.senderId) continue;
 

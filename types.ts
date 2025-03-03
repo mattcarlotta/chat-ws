@@ -1,3 +1,4 @@
+import type { Database } from "bun:sqlite";
 import type { Server, ServerWebSocket } from "bun";
 import type {
     RedisClientType,
@@ -6,7 +7,7 @@ import type {
     RedisScripts,
 } from "@redis/client";
 
-export type { Server };
+export type { Server, Database };
 
 export type RedisStore = RedisClientType<
     RedisModules,
@@ -48,10 +49,20 @@ export enum MessageType {
     ERROR = "error",
 }
 
+export interface User {
+    id: string;
+    username: string;
+    password: string;
+    email: string;
+    created_at: string;
+}
+
 export interface Message {
+    id: string;
     type: MessageType;
     username: string;
     userId?: string;
     senderId?: string;
     message?: string;
+    created_at: string;
 }

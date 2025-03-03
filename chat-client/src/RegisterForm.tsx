@@ -1,46 +1,40 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
-// import Cookie from "js-cookie";
 import Nav from "./Nav";
 import useWebSocketContext from "./useWebSocketContext";
 import { ConnectionStatus } from "./types";
 
-export default function LoginForm() {
+export default function RegisterForm() {
     const { setConnectionStatus } = useWebSocketContext();
-    const [email, setEmail] = useState("");
+    const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
+    const [email, setEmail] = useState("");
     const [error, setError] = useState("");
-
-    const handleRegister = () => {
-        setConnectionStatus(ConnectionStatus.REGISTERING);
-    };
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
 
         setError("");
-        if (!email.length || !password.length) {
-            setError("You must provide an email and a password!");
+        if (!username.length || !password.length || !email.length) {
+            setError("You must provide a username, password and email!");
             return;
         }
 
         try {
-            const res = await fetch(`http://${import.meta.env.VITE_HOST_URL}/login`, {
+            const res = await fetch(`http://${import.meta.env.VITE_HOST_URL}/register`, {
                 method: "POST",
-                body: JSON.stringify({ email, password }),
+                body: JSON.stringify({ username, password, email }),
                 headers: {
                     "Content-Type": "application/json"
                 }
             });
 
-            const data = await res.text();
-            if (!res.ok || !data) {
-                throw Error(data || "There was a problem logging in. Please try again.");
+            if (!res.ok) {
+                const data = await res.text();
+                throw Error(data || "Unable to create user!");
             }
 
-            // Cookie.set("token", data, { path: "/", expires: 2592000 });
-
-            setConnectionStatus(ConnectionStatus.CONNECTING);
+            setConnectionStatus(ConnectionStatus.UNAUTHED);
         } catch (error) {
             setError((error as Error)?.message);
         }
@@ -67,6 +61,18 @@ export default function LoginForm() {
                 <div>
                     <label>
                         <input
+                            id="username"
+                            placeholder="Enter a username..."
+                            className="text-black bg-white w-full py-3.5 pl-3.5 border border-gray-400 rounded"
+                            type="text"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                        />
+                    </label>
+                </div>
+                <div>
+                    <label>
+                        <input
                             id="password"
                             placeholder="Enter a password..."
                             className="text-black bg-white w-full py-3.5 pl-3.5 border border-gray-400 rounded"
@@ -84,16 +90,6 @@ export default function LoginForm() {
                         Log In
                     </button>
                 </div>
-                <p>
-                    Don&apos;t have an accont?&nbsp;
-                    <button
-                        className="text-blue-700 cursor-pointer hover:underline"
-                        onClick={handleRegister}
-                        type="button"
-                    >
-                        Register here
-                    </button>
-                </p>
                 {Boolean(error) && <p className="text-red-500 font-bold">{error}</p>}
             </form>
         </Nav>

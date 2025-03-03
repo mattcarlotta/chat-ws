@@ -10,7 +10,8 @@ export enum ConnectionStatus {
     CONNECTING,
     CONNECTED,
     ERROR,
-    UNAUTHED
+    UNAUTHED,
+    REGISTERING
 }
 
 export interface Message {

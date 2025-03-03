@@ -1,5 +1,6 @@
 import Nav from "./Nav";
 import ConnectionError from "./ConnectionError";
+import RegisterForm from "./RegisterForm";
 import LoginForm from "./LoginForm";
 import ChatBox from "./ChatBox";
 import SendChatMessageForm from "./SendChatMessageForm";
@@ -27,7 +28,8 @@ function App() {
                         </>
                     ),
                     [ConnectionStatus.ERROR]: <ConnectionError />,
-                    [ConnectionStatus.UNAUTHED]: <LoginForm />
+                    [ConnectionStatus.UNAUTHED]: <LoginForm />,
+                    [ConnectionStatus.REGISTERING]: <RegisterForm />
                 }[connectionStatus]
             }
         </>
