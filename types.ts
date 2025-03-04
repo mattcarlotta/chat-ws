@@ -9,6 +9,18 @@ import type {
 
 export type { Server, Database };
 
+export interface DBConnectionI {
+    findUserById(id: string): User | null;
+    findUserByEmail(email: string): User | null;
+    createUser(username: string, password: string, email: string): Promise<User>;
+    findUser(email: string, password: string): Promise<User | null>;
+    getUserById(id: string): User | null;
+    saveMessage(userId: string, message: string): Message;
+    getMessageById(messageId: string): Message | null;
+    getAllMessages(userId: string): Message[];
+    close(): void;
+}
+
 export type RedisStore = RedisClientType<
     RedisModules,
     RedisFunctions,

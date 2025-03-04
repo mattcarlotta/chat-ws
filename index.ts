@@ -1,9 +1,10 @@
 import { createClient } from "@redis/client";
 import WebSocketServer from "./websocket";
 import routes from "./routes";
-import db from "./db";
+import DBConnection from "./db";
 
 const store = createClient({ url: Bun.env.REDIS_URL });
+const db = new DBConnection(String(Bun.env.DB_FILE_PATH));
 
 const ws = new WebSocketServer(Bun.env.PORT, routes, store, db);
 

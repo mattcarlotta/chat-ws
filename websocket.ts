@@ -1,5 +1,6 @@
 import type {
     Client,
+    DBConnectionI,
     Message,
     RedisStore,
     Server,
@@ -8,8 +9,6 @@ import type {
 import type { RouterI } from "./router";
 import { MessageType } from "./types";
 import { randomUUIDv7 } from "bun";
-import type { Database } from "bun:sqlite";
-import { findUserById, getAllMessages, saveMessage } from "./db";
 import { AuthValidationError, ValidationError } from "./errors";
 
 export interface WebSocketServerI {
@@ -23,9 +22,14 @@ export default class WebSocketServer implements WebSocketServerI {
     private router: RouterI;
     private store: RedisStore;
     private port: string;
-    private db: Database;
+    private db: DBConnectionI;
 
-    constructor(port = "8080", router: RouterI, store: RedisStore, db: Database) {
+    constructor(
+        port = "8080",
+        router: RouterI,
+        store: RedisStore,
+        db: DBConnectionI,
+    ) {
         this.router = router;
         this.store = store;
         this.port = port;
@@ -37,11 +41,11 @@ export default class WebSocketServer implements WebSocketServerI {
         try {
             await this.store.connect();
             console.log(`Connected to redis store... `);
-            console.log(`Connected to sqlite db... `);
 
             this.server = Bun.serve({
                 port: this.port,
-                fetch: (req, server) => this.router.serve(req, server, this.store),
+                fetch: (req, server) =>
+                    this.router.serve(req, server, this.store, this.db),
                 websocket: {
                     maxPayloadLength: 1024 * 1024,
                     open: this.handleConnection,
@@ -114,7 +118,7 @@ export default class WebSocketServer implements WebSocketServerI {
     private handleConnection = (ws: WebSocketWithData): void => {
         const { userId, username } = ws.data;
 
-        const messages = getAllMessages(userId);
+        const messages = this.db.getAllMessages(userId);
 
         const clientConnection = this.clients.get(userId);
         if (clientConnection) {
@@ -138,28 +142,25 @@ export default class WebSocketServer implements WebSocketServerI {
         });
     };
 
-    private handleMessage = async (
-        ws: WebSocketWithData,
-        message: string,
-    ): Promise<void> => {
+    private handleMessage = (ws: WebSocketWithData, message: string): void => {
         try {
             const { userId } = ws.data;
             if (!message) {
                 throw new ValidationError("You must provide a message!");
             }
 
-            const user = findUserById(userId);
+            const user = this.store.get(userId);
             if (!user) {
                 throw new AuthValidationError(
                     "You must be logged in to send a message!",
                 );
             }
 
-            const savedMessage = saveMessage(userId, message);
+            const savedMessage = this.db.saveMessage(userId, message);
             this.broadcast({
                 type: savedMessage.type,
                 id: savedMessage.id,
-                userId: user.id,
+                userId: userId,
                 message,
                 createdAt: savedMessage.createdAt,
                 username: savedMessage.username,

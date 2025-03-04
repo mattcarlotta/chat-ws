@@ -1,96 +1,106 @@
-import { MessageType, type Message, type User } from "./types";
+import type { Message, User, DBConnectionI } from "./types";
+import { MessageType } from "./types";
 import { randomUUIDv7, password as passordUtil } from "bun";
 import Database from "bun:sqlite";
 
-const db = new Database(Bun.env.DB_FILE_PATH, { create: true });
+export default class DBConnection implements DBConnectionI {
+    db: Database;
 
-db.run("PRAGMA foreign_keys = ON");
+    constructor(filepath: string) {
+        this.db = new Database(filepath, { create: true });
 
-db.query(
-    `CREATE TABLE IF NOT EXISTS "users" (
-        id TEXT NOT NULL PRIMARY KEY,
-        email VARCHAR(256) NOT NULL UNIQUE,
-        username VARCHAR(30) NOT NULL,
-        password TEXT NOT NULL,
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )`,
-).run();
+        this.db.run("PRAGMA foreign_keys = ON");
 
-db.query(
-    `CREATE TABLE IF NOT EXISTS messages (
-        id TEXT NOT NULL PRIMARY KEY,
-        type TEXT NOT NULL,
-        userId TEXT NOT NULL,
-        message TEXT NOT NULL,
-        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (userId) REFERENCES users (id)
-    )
-`,
-).run();
+        this.db
+            .query(
+                `CREATE TABLE IF NOT EXISTS "users" (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    email VARCHAR(256) NOT NULL UNIQUE,
+                    username VARCHAR(30) NOT NULL,
+                    password TEXT NOT NULL,
+                    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )`,
+            )
+            .run();
 
-db.query(`CREATE UNIQUE INDEX IF NOT EXISTS userIdIndex ON "users" (id)`).run();
+        this.db
+            .query(
+                `CREATE TABLE IF NOT EXISTS messages (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    type TEXT NOT NULL,
+                    userId TEXT NOT NULL,
+                    message TEXT NOT NULL,
+                    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (userId) REFERENCES users (id)
+                )`,
+            )
+            .run();
 
-export function findUserById(id: string): User | null {
-    const stmt = db.prepare("SELECT * FROM users WHERE id = ?");
-    return stmt.get(id) as User | null;
-}
+        this.db
+            .query(`CREATE UNIQUE INDEX IF NOT EXISTS userIdIndex ON "users" (id)`)
+            .run();
 
-export function findUserByEmail(email: string): User | null {
-    const stmt = db.prepare("SELECT * FROM users WHERE email = ?");
-    return stmt.get(email) as User | null;
-}
+        console.log(`Connected to sqlite db... `);
+    }
 
-export async function createUser(
-    username: string,
-    password: string,
-    email: string,
-): Promise<User> {
-    const id = randomUUIDv7();
-    const hashedPassword = await passordUtil.hash(password);
+    public findUserById(id: string): User | null {
+        const stmt = this.db.prepare("SELECT * FROM users WHERE id = ?");
+        return stmt.get(id) as User | null;
+    }
 
-    const stmt = db.prepare(`
+    public findUserByEmail(email: string): User | null {
+        const stmt = this.db.prepare("SELECT * FROM users WHERE email = ?");
+        return stmt.get(email) as User | null;
+    }
+
+    public async createUser(
+        username: string,
+        password: string,
+        email: string,
+    ): Promise<User> {
+        const id = randomUUIDv7();
+        const hashedPassword = await passordUtil.hash(password);
+
+        const stmt = this.db.prepare(`
     INSERT INTO users (id, username, password, email)
     VALUES (?, ?, ?, ?)
   `);
 
-    stmt.run(id, username, hashedPassword, email);
+        stmt.run(id, username, hashedPassword, email);
 
-    return getUserById(id) as User;
-}
+        return this.getUserById(id) as User;
+    }
 
-export async function findUser(
-    email: string,
-    password: string,
-): Promise<User | null> {
-    const user = findUserByEmail(email);
-    if (!user) return null;
+    public async findUser(email: string, password: string): Promise<User | null> {
+        const user = this.findUserByEmail(email);
+        if (!user) return null;
 
-    const validPassword = await passordUtil.verify(password, user.password);
-    if (!validPassword) return null;
+        const validPassword = await passordUtil.verify(password, user.password);
+        if (!validPassword) return null;
 
-    return user;
-}
+        return user;
+    }
 
-export function getUserById(id: string): User | null {
-    const stmt = db.prepare("SELECT * FROM users WHERE id = ?");
-    return stmt.get(id) as User | null;
-}
+    public getUserById(id: string): User | null {
+        const stmt = this.db.prepare("SELECT * FROM users WHERE id = ?");
+        return stmt.get(id) as User | null;
+    }
 
-export function saveMessage(userId: string, message: string): Message {
-    const id = randomUUIDv7();
+    public saveMessage(userId: string, message: string): Message {
+        const id = randomUUIDv7();
 
-    const stmt = db.prepare(`
+        const stmt = this.db.prepare(`
         INSERT into messages (id, type, userId, message)
         VALUES (?, ?, ?, ?)
     `);
 
-    stmt.run(id, MessageType.USER_MESSAGE, userId, message);
+        stmt.run(id, MessageType.USER_MESSAGE, userId, message);
 
-    return getMessageById(id) as Message;
-}
+        return this.getMessageById(id) as Message;
+    }
 
-export function getMessageById(messageId: string): Message | null {
-    const stmt = db.prepare(`
+    public getMessageById(messageId: string): Message | null {
+        const stmt = this.db.prepare(`
         SELECT 
             m.id,
             m.type,
@@ -103,11 +113,11 @@ export function getMessageById(messageId: string): Message | null {
         WHERE m.id = ?
     `);
 
-    return stmt.get(messageId) as Message | null;
-}
+        return stmt.get(messageId) as Message | null;
+    }
 
-export function getAllMessages(userId: string): Message[] {
-    const stmt = db.prepare(`
+    public getAllMessages(userId: string): Message[] {
+        const stmt = this.db.prepare(`
     SELECT * FROM (
         SELECT 
             m.id,
@@ -129,7 +139,10 @@ export function getAllMessages(userId: string): Message[] {
     ORDER BY createdAt ASC
   `);
 
-    return stmt.all(userId) as Message[];
-}
+        return stmt.all(userId) as Message[];
+    }
 
-export default db;
+    close(): void {
+        this.db.close();
+    }
+}

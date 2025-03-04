@@ -1,5 +1,5 @@
 import type { ResponseError } from "./errors";
-import type { RedisStore, Req, Server } from "./types";
+import type { DBConnectionI, RedisStore, Req, Server } from "./types";
 import { Method } from "./types";
 
 export type RouterResponse =
@@ -13,6 +13,7 @@ type Controller = (
     req: Req,
     server: Server,
     store: RedisStore,
+    db: DBConnectionI,
 ) => RouterResponse;
 
 type Route = Map<string, Controller>;
@@ -23,6 +24,7 @@ export interface RouterI {
         req: Request,
         server: Server,
         store: RedisStore,
+        db: DBConnectionI,
     ): Promise<Response | undefined | void>;
     all(path: string, controller: Controller): Router;
     get(path: string, controller: Controller): Router;
@@ -33,7 +35,12 @@ export interface RouterI {
     head(path: string, controller: Controller): Router;
     options(path: string, controller: Controller): Router;
     static(directory: string, controller: Controller): Router;
-    serve(req: Request, server: Server, store: RedisStore): RouterResponse;
+    serve(
+        req: Request,
+        server: Server,
+        store: RedisStore,
+        db: DBConnectionI,
+    ): RouterResponse;
     sendError(status: number, err: string): Response;
     createHeaders({
         token,
@@ -180,9 +187,10 @@ export default class Router implements RouterI {
         req: Req,
         server: Server,
         store: RedisStore,
+        db: DBConnectionI,
     ): Promise<Response | undefined | void> => {
         try {
-            const response = await controller.call(this, req, server, store);
+            const response = await controller.call(this, req, server, store, db);
             return response;
         } catch (error) {
             const err = error as ResponseError;
@@ -196,7 +204,12 @@ export default class Router implements RouterI {
         }
     };
 
-    public serve(req: Req, server: Server, store: RedisStore): RouterResponse {
+    public serve(
+        req: Req,
+        server: Server,
+        store: RedisStore,
+        db: DBConnectionI,
+    ): RouterResponse {
         req.URL = new URL(req.url);
 
         if (this.staticKeys.length) {
@@ -206,7 +219,7 @@ export default class Router implements RouterI {
 
             if (controller) {
                 return req.method === Method.GET
-                    ? this.controllerHandler(controller, req, server, store)
+                    ? this.controllerHandler(controller, req, server, store, db)
                     : this.sendError(404, "Not found.");
             }
         }
@@ -221,6 +234,6 @@ export default class Router implements RouterI {
             return this.sendError(404, "Not found.");
         }
 
-        return this.controllerHandler(registeredCallback, req, server, store);
+        return this.controllerHandler(registeredCallback, req, server, store, db);
     }
 }
