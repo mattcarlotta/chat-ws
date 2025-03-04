@@ -4,10 +4,22 @@ import Nav from "./Nav";
 import useWebSocketContext from "./useWebSocketContext";
 
 export default function NavBox() {
-    const { socket, messages, onlineUsers } = useWebSocketContext();
+    const { setError, messages, onlineUsers } = useWebSocketContext();
 
-    const handleDisconnect = () => {
-        socket?.close();
+    const handleDisconnect = async () => {
+        try {
+            const res = await fetch(`http://${import.meta.env.VITE_HOST_URL}/logout`, {
+                method: "POST",
+                credentials: "include"
+            });
+
+            if (!res.ok) {
+                const data = await res.text();
+                throw Error(data || "There was a problem logging out.");
+            }
+        } catch (error) {
+            setError((error as Error)?.message);
+        }
     };
 
     return (

@@ -15,6 +15,7 @@
   "dependencies": {
     "@redis/client": "^1.6.0",
     "@types/jsonwebtoken": "^9.0.9",
+    "cookie": "^1.0.2",
     "jsonwebtoken": "^9.0.2"
   }
 }

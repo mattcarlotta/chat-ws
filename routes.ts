@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import cookie from "cookie";
 import Router from "./router";
 import { AuthValidationError, ServerError, ValidationError } from "./errors";
 
@@ -61,7 +62,28 @@ router
             status: 201,
         });
     })
-    // .post("/logout", (req) => { })
+    .post("/logout", function({ req }) {
+        const reqcookie = req.headers.get("Cookie") || "";
+        const parsedCookies = cookie.parse(reqcookie);
+        if (!parsedCookies?.token) {
+            return new Response("Wow", { status: 400 });
+        }
+
+        const { userId } = jwt.verify(
+            parsedCookies.token,
+            String(import.meta.env.JWT_SECRET),
+            {
+                maxAge: 2592000,
+            },
+        ) as JWTUserId;
+
+        dispatchEvent(new CustomEvent("logout-disconnect", { detail: { userId } }));
+
+        return new Response(null, {
+            headers: this.createHeaders({ clearToken: true }),
+            status: 200,
+        });
+    })
     .get("/chat", async function({ req, server, store }) {
         const token = req.URL.searchParams.get("token") || "";
         if (!token) {

@@ -31,6 +31,7 @@ export interface WebSocketContextT {
     messages: Message[];
     onlineUsers: number;
     setConnectionStatus: (s: ConnectionStatus) => void;
+    setError: (e: string) => void;
     setMessages: (m: Message[]) => void;
     socket: WebSocket | null;
 }

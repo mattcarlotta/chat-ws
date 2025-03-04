@@ -35,6 +35,10 @@ export default class WebSocketServer implements WebSocketServerI {
         this.port = port;
         this.server = null;
         this.db = db;
+        addEventListener(
+            "logout-disconnect",
+            this.handleLogoutDisconnection as EventListener,
+        );
     }
 
     public start = async (): Promise<void> => {
@@ -63,6 +67,15 @@ export default class WebSocketServer implements WebSocketServerI {
         }
     };
 
+    private handleLogoutDisconnection = (
+        e: CustomEvent<{ userId: string }>,
+    ): void => {
+        const connection = this.clients.get(e.detail.userId);
+        if (!connection) return;
+
+        connection.socket.close();
+    };
+
     public shutdown = () => {
         if (this.server) {
             this.server.stop();
@@ -73,6 +86,11 @@ export default class WebSocketServer implements WebSocketServerI {
         }
 
         this.db.close();
+
+        removeEventListener(
+            "logout-disconnect",
+            this.handleLogoutDisconnection as EventListener,
+        );
     };
 
     private broadcast = (data: Partial<Message>): void => {

@@ -70,6 +70,7 @@ export default function DBProvider({ children }: { children: ReactNode }) {
                 onlineUsers,
                 setConnectionStatus,
                 setMessages,
+                setError,
                 socket
             }}
         >
