@@ -10,10 +10,12 @@ export type RouterResponse =
 
 type Controller = (
     this: Router,
-    req: Req,
-    server: Server,
-    store: RedisStore,
-    db: DBConnectionI,
+    {
+        req,
+        server,
+        store,
+        db,
+    }: { req: Req; server: Server; store: RedisStore; db: DBConnectionI },
 ) => RouterResponse;
 
 type Route = Map<string, Controller>;
@@ -190,7 +192,7 @@ export default class Router implements RouterI {
         db: DBConnectionI,
     ): Promise<Response | undefined | void> => {
         try {
-            const response = await controller.call(this, req, server, store, db);
+            const response = await controller.call(this, { req, server, store, db });
             return response;
         } catch (error) {
             const err = error as ResponseError;

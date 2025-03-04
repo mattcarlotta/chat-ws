@@ -9,7 +9,7 @@ const router = new Router();
 
 router
     .get("/", () => new Response(Bun.file(`./chat-client/dist/index.html`)))
-    .post("/login", async function(req, _server, store, db) {
+    .post("/login", async function({ req, store, db }) {
         const { email, password } = (await req.json()) as ReqBodyPayload;
 
         if (!email || !password) {
@@ -39,7 +39,7 @@ router
             status: 200,
         });
     })
-    .post("/register", async function(req, _server, _store, db) {
+    .post("/register", async function({ req, db }) {
         const { username, password, email } = (await req.json()) as ReqBodyPayload;
 
         if (!username || !password || !email) {
@@ -62,7 +62,7 @@ router
         });
     })
     // .post("/logout", (req) => { })
-    .get("/chat", async function(req, server, store) {
+    .get("/chat", async function({ req, server, store }) {
         const token = req.URL.searchParams.get("token") || "";
         if (!token) {
             throw new ValidationError(
@@ -91,11 +91,13 @@ router
     })
     .static(
         "assets",
-        (req) => new Response(Bun.file(`./chat-client/dist${req.URL.pathname}`)),
+        ({ req }) =>
+            new Response(Bun.file(`./chat-client/dist${req.URL.pathname}`)),
     )
     .static(
         "chat.svg",
-        (req) => new Response(Bun.file(`./chat-client/dist${req.URL.pathname}`)),
+        ({ req }) =>
+            new Response(Bun.file(`./chat-client/dist${req.URL.pathname}`)),
     );
 
 export default router;
