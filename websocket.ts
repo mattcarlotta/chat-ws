@@ -1,8 +1,8 @@
-import type { Client, DBConnectionI, Message, RedisStore, Server, WebSocketWithData } from "./types";
 import type { RouterI } from "./router";
-import { MessageType } from "./types";
+import type { Client, DBConnectionI, Message, RedisStore, Server, WebSocketWithData } from "./types";
 import { randomUUIDv7 } from "bun";
 import { AuthValidationError, ValidationError } from "./errors";
+import { MessageType } from "./types";
 
 export interface WebSocketServerI {
     start(): Promise<void>;

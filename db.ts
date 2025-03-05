@@ -1,7 +1,7 @@
-import type { Message, User, DBConnectionI } from "./types";
-import { MessageType } from "./types";
-import { randomUUIDv7, password as passordUtil } from "bun";
+import type { DBConnectionI, Message, User } from "./types";
+import { password as passordUtil, randomUUIDv7 } from "bun";
 import Database from "bun:sqlite";
+import { MessageType } from "./types";
 
 export default class DBConnection implements DBConnectionI {
     db: Database;

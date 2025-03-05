@@ -1,11 +1,11 @@
-import Nav from "./Nav";
-import ConnectionError from "./ConnectionError";
-import RegisterForm from "./RegisterForm";
-import LoginForm from "./LoginForm";
 import ChatBox from "./ChatBox";
+import ConnectionError from "./ConnectionError";
+import LoginForm from "./LoginForm";
+import Nav from "./Nav";
+import RegisterForm from "./RegisterForm";
 import SendChatMessageForm from "./SendChatMessageForm";
-import useWebSocketContext from "./useWebSocketContext";
 import { ConnectionStatus } from "./types";
+import useWebSocketContext from "./useWebSocketContext";
 
 function App() {
     const { connectionStatus } = useWebSocketContext();

@@ -1,7 +1,7 @@
-import jwt from "jsonwebtoken";
 import cookie from "cookie";
-import Router from "./router";
+import jwt from "jsonwebtoken";
 import { AuthValidationError, ServerError, ValidationError } from "./errors";
+import Router from "./router";
 
 type ReqBodyPayload = { username: string; password: string; email: string };
 type JWTUserId = { userId: string };

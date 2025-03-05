@@ -1,6 +1,6 @@
-import { MessageType } from "./types";
 import clsx from "clsx";
 import Nav from "./Nav";
+import { MessageType } from "./types";
 import useWebSocketContext from "./useWebSocketContext";
 
 export default function NavBox() {

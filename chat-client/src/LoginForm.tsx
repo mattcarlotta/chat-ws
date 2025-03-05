@@ -2,8 +2,8 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 // import Cookie from "js-cookie";
 import Nav from "./Nav";
-import useWebSocketContext from "./useWebSocketContext";
 import { ConnectionStatus } from "./types";
+import useWebSocketContext from "./useWebSocketContext";
 
 export default function LoginForm() {
     const { setConnectionStatus } = useWebSocketContext();

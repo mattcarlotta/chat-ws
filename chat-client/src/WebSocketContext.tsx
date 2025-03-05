@@ -1,9 +1,9 @@
-import type { Message } from "./types";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import type { Message } from "./types";
 import Cookie from "js-cookie";
-import { WebSocketContext } from "./useWebSocketContext";
+import { useEffect, useState } from "react";
 import { ConnectionStatus } from "./types";
+import { WebSocketContext } from "./useWebSocketContext";
 
 export default function DBProvider({ children }: { children: ReactNode }) {
     const [socket, setSocket] = useState<WebSocket | null>(null);

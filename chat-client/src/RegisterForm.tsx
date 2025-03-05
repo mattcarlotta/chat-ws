@@ -1,8 +1,8 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
 import Nav from "./Nav";
-import useWebSocketContext from "./useWebSocketContext";
 import { ConnectionStatus } from "./types";
+import useWebSocketContext from "./useWebSocketContext";
 
 export default function RegisterForm() {
     const { setConnectionStatus } = useWebSocketContext();
