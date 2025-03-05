@@ -1,11 +1,4 @@
-import type {
-    Client,
-    DBConnectionI,
-    Message,
-    RedisStore,
-    Server,
-    WebSocketWithData,
-} from "./types";
+import type { Client, DBConnectionI, Message, RedisStore, Server, WebSocketWithData } from "./types";
 import type { RouterI } from "./router";
 import { MessageType } from "./types";
 import { randomUUIDv7 } from "bun";
@@ -25,12 +18,7 @@ export default class WebSocketServer implements WebSocketServerI {
     private db: DBConnectionI;
     private abortController: AbortController;
 
-    constructor(
-        port = "8080",
-        router: RouterI,
-        store: RedisStore,
-        db: DBConnectionI,
-    ) {
+    constructor(port = "8080", router: RouterI, store: RedisStore, db: DBConnectionI) {
         this.router = router;
         this.store = store;
         this.port = port;
@@ -38,13 +26,9 @@ export default class WebSocketServer implements WebSocketServerI {
         this.db = db;
         this.abortController = new AbortController();
 
-        addEventListener(
-            "logout-disconnect",
-            this.handleLogoutDisconnection as EventListener,
-            {
-                signal: this.abortController.signal,
-            },
-        );
+        addEventListener("logout-disconnect", this.handleLogoutDisconnection as EventListener, {
+            signal: this.abortController.signal
+        });
     }
 
     public start = async (): Promise<void> => {
@@ -54,28 +38,23 @@ export default class WebSocketServer implements WebSocketServerI {
 
             this.server = Bun.serve({
                 port: this.port,
-                fetch: (req, server) =>
-                    this.router.serve(req, server, this.store, this.db),
+                fetch: (req, server) => this.router.serve(req, server, this.store, this.db),
                 websocket: {
                     maxPayloadLength: 1024 * 1024,
                     open: this.handleConnection,
                     message: this.handleMessage,
-                    close: this.handleDisconnection,
-                },
+                    close: this.handleDisconnection
+                }
             });
 
-            console.log(
-                `Started a web socket server running at... ${this.server.url}`,
-            );
+            console.log(`Started a web socket server running at... ${this.server.url}`);
         } catch (error) {
             console.error(error);
             process.exit(1);
         }
     };
 
-    private handleLogoutDisconnection = (
-        e: CustomEvent<{ userId: string }>,
-    ): void => {
+    private handleLogoutDisconnection = (e: CustomEvent<{ userId: string }>): void => {
         const connection = this.clients.get(e.detail.userId);
         if (!connection) return;
 
@@ -107,8 +86,8 @@ export default class WebSocketServer implements WebSocketServerI {
                     message: data.message,
                     sentByCurrentUser: client.id === data.userId,
                     createdAt: data.createdAt || new Date().toISOString(),
-                    username: data.username,
-                }),
+                    username: data.username
+                })
             );
         }
     };
@@ -119,7 +98,7 @@ export default class WebSocketServer implements WebSocketServerI {
             type: MessageType;
             error?: string;
             messages?: Message[];
-        },
+        }
     ): void {
         ws.send(
             JSON.stringify({
@@ -130,8 +109,8 @@ export default class WebSocketServer implements WebSocketServerI {
                 sentByCurrentUser: data.type === MessageType.USER_MESSAGE,
                 messages: data.messages,
                 createdAt: new Date().toISOString(),
-                username: ws.data.username,
-            }),
+                username: ws.data.username
+            })
         );
     }
 
@@ -142,9 +121,7 @@ export default class WebSocketServer implements WebSocketServerI {
 
         const clientConnection = this.clients.get(userId);
         if (clientConnection) {
-            console.log(
-                `Client ${clientConnection.id} already connected. Disconnecting old connection...`,
-            );
+            console.log(`Client ${clientConnection.id} already connected. Disconnecting old connection...`);
             clientConnection.socket.close();
         }
 
@@ -157,7 +134,7 @@ export default class WebSocketServer implements WebSocketServerI {
         this.broadcast({
             type: MessageType.USER_JOINED,
             senderId: userId,
-            username,
+            username
         });
     };
 
@@ -170,9 +147,7 @@ export default class WebSocketServer implements WebSocketServerI {
 
             const user = this.store.get(userId);
             if (!user) {
-                throw new AuthValidationError(
-                    "You must be logged in to send a message!",
-                );
+                throw new AuthValidationError("You must be logged in to send a message!");
             }
 
             const savedMessage = this.db.saveMessage(userId, message);
@@ -182,13 +157,13 @@ export default class WebSocketServer implements WebSocketServerI {
                 userId: userId,
                 message,
                 createdAt: savedMessage.createdAt,
-                username: savedMessage.username,
+                username: savedMessage.username
             });
         } catch (error) {
             console.error(`Error parsing message: `, error);
             this.relayMessage(ws, {
                 type: MessageType.ERROR,
-                error: (error as Error)?.message,
+                error: (error as Error)?.message
             });
         }
     };
@@ -202,7 +177,7 @@ export default class WebSocketServer implements WebSocketServerI {
 
         this.broadcast({
             type: MessageType.USER_LEFT,
-            username,
+            username
         });
     };
 }

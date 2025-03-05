@@ -43,7 +43,7 @@ export default function RegisterForm() {
     return (
         <Nav>
             <form
-                className="h-[calc(100%-81px)] flex flex-col justify-center items-center space-y-4"
+                className="flex h-[calc(100%-81px)] flex-col items-center justify-center space-y-4"
                 onSubmit={handleSubmit}
             >
                 <div>
@@ -51,7 +51,7 @@ export default function RegisterForm() {
                         <input
                             id="email"
                             placeholder="Enter email..."
-                            className="text-black bg-white w-full py-3.5 pl-3.5 border border-gray-400 rounded"
+                            className="w-full rounded border border-gray-400 bg-white py-3.5 pl-3.5 text-black"
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
@@ -63,7 +63,7 @@ export default function RegisterForm() {
                         <input
                             id="username"
                             placeholder="Enter a username..."
-                            className="text-black bg-white w-full py-3.5 pl-3.5 border border-gray-400 rounded"
+                            className="w-full rounded border border-gray-400 bg-white py-3.5 pl-3.5 text-black"
                             type="text"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
@@ -75,7 +75,7 @@ export default function RegisterForm() {
                         <input
                             id="password"
                             placeholder="Enter a password..."
-                            className="text-black bg-white w-full py-3.5 pl-3.5 border border-gray-400 rounded"
+                            className="w-full rounded border border-gray-400 bg-white py-3.5 pl-3.5 text-black"
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
@@ -85,12 +85,12 @@ export default function RegisterForm() {
                 <div>
                     <button
                         type="submit"
-                        className="cursor-pointer rounded bg-blue-600 py-2.5 px-24 text-white text-lg font-semibold hover:bg-blue-700 dark:bg-purple-800 dark:hover:bg-purple-900"
+                        className="cursor-pointer rounded bg-blue-600 px-24 py-2.5 text-lg font-semibold text-white hover:bg-blue-700 dark:bg-purple-800 dark:hover:bg-purple-900"
                     >
                         Log In
                     </button>
                 </div>
-                {Boolean(error) && <p className="text-red-500 font-bold">{error}</p>}
+                {Boolean(error) && <p className="font-bold text-red-500">{error}</p>}
             </form>
         </Nav>
     );

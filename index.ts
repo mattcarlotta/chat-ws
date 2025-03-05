@@ -12,9 +12,7 @@ ws.start();
 
 for (const signal of ["SIGINT", "SIGTERM", "SIGQUIT"]) {
     process.on(signal, () => {
-        console.log(
-            `\nReceived ${signal}, closing websocket, redis and sqlite connections...`,
-        );
+        console.log(`\nReceived ${signal}, closing websocket, redis and sqlite connections...`);
         ws.shutdown();
         process.exit(0);
     });

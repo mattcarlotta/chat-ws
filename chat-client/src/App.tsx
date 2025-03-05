@@ -16,7 +16,7 @@ function App() {
                 {
                     [ConnectionStatus.CONNECTING]: (
                         <Nav>
-                            <div className="h-[calc(100%-81px)] flex justify-center items-center">
+                            <div className="flex h-[calc(100%-81px)] items-center justify-center">
                                 <p>Loading...</p>
                             </div>
                         </Nav>

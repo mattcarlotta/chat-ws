@@ -2,20 +2,11 @@ import type { ResponseError } from "./errors";
 import type { DBConnectionI, RedisStore, Req, Server } from "./types";
 import { Method } from "./types";
 
-export type RouterResponse =
-    | Promise<Response | undefined | void>
-    | Response
-    | undefined
-    | void;
+export type RouterResponse = Promise<Response | undefined | void> | Response | undefined | void;
 
 type Controller = (
     this: Router,
-    {
-        req,
-        server,
-        store,
-        db,
-    }: { req: Req; server: Server; store: RedisStore; db: DBConnectionI },
+    { req, server, store, db }: { req: Req; server: Server; store: RedisStore; db: DBConnectionI }
 ) => RouterResponse;
 
 type Route = Map<string, Controller>;
@@ -26,7 +17,7 @@ export interface RouterI {
         req: Request,
         server: Server,
         store: RedisStore,
-        db: DBConnectionI,
+        db: DBConnectionI
     ): Promise<Response | undefined | void>;
     all(path: string, controller: Controller): Router;
     get(path: string, controller: Controller): Router;
@@ -37,22 +28,9 @@ export interface RouterI {
     head(path: string, controller: Controller): Router;
     options(path: string, controller: Controller): Router;
     static(directory: string, controller: Controller): Router;
-    serve(
-        req: Request,
-        server: Server,
-        store: RedisStore,
-        db: DBConnectionI,
-    ): RouterResponse;
+    serve(req: Request, server: Server, store: RedisStore, db: DBConnectionI): RouterResponse;
     sendError(status: number, err: string): Response;
-    createHeaders({
-        token,
-        clearToken,
-        ct,
-    }: {
-        token?: string;
-        clearToken?: boolean;
-        ct?: string;
-    }): Headers;
+    createHeaders({ token, clearToken, ct }: { token?: string; clearToken?: boolean; ct?: string }): Headers;
 }
 
 export default class Router implements RouterI {
@@ -70,14 +48,14 @@ export default class Router implements RouterI {
         console.error(err);
         return new Response(err, {
             status,
-            headers: this.createHeaders({ clearToken: true }),
+            headers: this.createHeaders({ clearToken: true })
         });
     }
 
     public createHeaders({
         token,
         clearToken,
-        ct,
+        ct
     }: { token?: string; clearToken?: boolean; ct?: string } = {}): Headers {
         const headers = new Headers();
 
@@ -104,18 +82,12 @@ export default class Router implements RouterI {
         return headers;
     }
 
-    private register(
-        method: Method,
-        path: string,
-        controller: Controller,
-    ): Router {
+    private register(method: Method, path: string, controller: Controller): Router {
         const registeredPath = this.controllers.get(path);
         if (registeredPath) {
             const registeredCallback = registeredPath.get(method);
             if (registeredCallback) {
-                throw new Error(
-                    `Unable to register a ${method} at ${path} controller because one already exists.`,
-                );
+                throw new Error(`Unable to register a ${method} at ${path} controller because one already exists.`);
             }
 
             registeredPath.set(method, controller);
@@ -127,9 +99,7 @@ export default class Router implements RouterI {
         }
 
         if (process.env.DEBUG) {
-            console.debug(
-                `Registered a "${method}" controller to point to "${path}"`,
-            );
+            console.debug(`Registered a "${method}" controller to point to "${path}"`);
         }
 
         return this;
@@ -176,9 +146,7 @@ export default class Router implements RouterI {
         this.staticKeys.push(asset);
 
         if (process.env.DEBUG) {
-            console.debug(
-                `Registered a "GET" controller to serve a static "${asset}" file or directory`,
-            );
+            console.debug(`Registered a "GET" controller to serve a static "${asset}" file or directory`);
         }
 
         return this;
@@ -189,7 +157,7 @@ export default class Router implements RouterI {
         req: Req,
         server: Server,
         store: RedisStore,
-        db: DBConnectionI,
+        db: DBConnectionI
     ): Promise<Response | undefined | void> => {
         try {
             const response = await controller.call(this, { req, server, store, db });
@@ -201,22 +169,16 @@ export default class Router implements RouterI {
 
             return new Response(e, {
                 headers: this.createHeaders({ clearToken: true }),
-                status: err?.statusCode,
+                status: err?.statusCode
             });
         }
     };
 
-    public serve(
-        req: Req,
-        server: Server,
-        store: RedisStore,
-        db: DBConnectionI,
-    ): RouterResponse {
+    public serve(req: Req, server: Server, store: RedisStore, db: DBConnectionI): RouterResponse {
         req.URL = new URL(req.url);
 
         if (this.staticKeys.length) {
-            const key =
-                this.staticKeys.find((key) => req.URL.pathname.includes(key)) || "";
+            const key = this.staticKeys.find((key) => req.URL.pathname.includes(key)) || "";
             const controller = this.statics.get(key);
 
             if (controller) {

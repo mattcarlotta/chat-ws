@@ -2,7 +2,8 @@
   "name": "websocket",
   "module": "index.ts",
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "prettier-plugin-tailwindcss": "^0.6.11"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
