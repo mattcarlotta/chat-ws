@@ -23,6 +23,7 @@ export default class WebSocketServer implements WebSocketServerI {
     private store: RedisStore;
     private port: string;
     private db: DBConnectionI;
+    private abortController: AbortController;
 
     constructor(
         port = "8080",
@@ -35,9 +36,14 @@ export default class WebSocketServer implements WebSocketServerI {
         this.port = port;
         this.server = null;
         this.db = db;
+        this.abortController = new AbortController();
+
         addEventListener(
             "logout-disconnect",
             this.handleLogoutDisconnection as EventListener,
+            {
+                signal: this.abortController.signal,
+            },
         );
     }
 
@@ -85,12 +91,8 @@ export default class WebSocketServer implements WebSocketServerI {
             this.store.quit();
         }
 
+        this.abortController.abort();
         this.db.close();
-
-        removeEventListener(
-            "logout-disconnect",
-            this.handleLogoutDisconnection as EventListener,
-        );
     };
 
     private broadcast = (data: Partial<Message>): void => {
@@ -144,12 +146,11 @@ export default class WebSocketServer implements WebSocketServerI {
                 `Client ${clientConnection.id} already connected. Disconnecting old connection...`,
             );
             clientConnection.socket.close();
-            this.clients.delete(userId);
         }
 
-        console.log(`Client connected: ${userId}`);
-
         this.clients.set(userId, { id: userId, username, socket: ws });
+
+        console.log(`Client connected: ${userId}`);
 
         this.relayMessage(ws, { type: MessageType.WELCOME, messages });
 
