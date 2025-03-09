@@ -1,9 +1,11 @@
 import clsx from "clsx";
+import { useLayoutEffect, useRef } from "react";
 import Nav from "./Nav";
 import { MessageType } from "./types";
 import useWebSocketContext from "./useWebSocketContext";
 
 export default function NavBox() {
+    const scrollContainer = useRef<HTMLDivElement | null>(null);
     const { setError, messages, onlineUsers } = useWebSocketContext();
 
     const handleDisconnect = async () => {
@@ -22,6 +24,11 @@ export default function NavBox() {
         }
     };
 
+    useLayoutEffect(() => {
+        if (!scrollContainer.current) return;
+        scrollContainer.current.scrollTo({ top: scrollContainer.current.scrollHeight, behavior: "smooth" });
+    }, [messages]);
+
     return (
         <Nav
             title={
@@ -39,8 +46,11 @@ export default function NavBox() {
                 </div>
             }
         >
-            <div className="mx-auto mt-4 h-[calc(100%-170px)] w-full max-w-4xl space-y-3 overflow-y-auto rounded border border-orange-300 bg-orange-800/10 p-4 shadow-md dark:border-purple-900 dark:bg-purple-900/10">
-                {messages.map((m, index) => (
+            <div
+                ref={scrollContainer}
+                className="mx-auto mt-4 h-[calc(100%-170px)] w-full max-w-4xl space-y-3 overflow-y-auto rounded border border-orange-300 bg-orange-800/10 p-4 shadow-md dark:border-purple-900 dark:bg-purple-900/10"
+            >
+                {messages.map((m) => (
                     <div
                         title={new Intl.DateTimeFormat("en-US", { dateStyle: "full", timeStyle: "long" }).format(
                             new Date(m.createdAt)
@@ -90,12 +100,6 @@ export default function NavBox() {
                                 )
                             }[m.type]
                         }
-                        {messages.length === index + 1 && (
-                            <div
-                                className="col-span-2 mt-4"
-                                ref={(e) => e?.scrollIntoView({ behavior: "smooth", block: "nearest" })}
-                            />
-                        )}
                     </div>
                 ))}
             </div>
